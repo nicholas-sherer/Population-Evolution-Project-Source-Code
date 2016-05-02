@@ -16,7 +16,7 @@ import populationevolution_v3 as popev
 init_fit_list = np.atleast_2d(np.array([0]))
 init_mu_list = np.atleast_2d(np.array([.01]))
 K = 10**5
-init_pop_dist = np.atleast_2d(np.array[K])
+init_pop_dist = np.atleast_2d(np.array([K]))
 
 M_list = [3, 5]
 P_mu_list = [.1]
