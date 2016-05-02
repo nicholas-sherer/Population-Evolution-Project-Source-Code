@@ -199,6 +199,18 @@ class Population(object):
             / np.sum(self.population_distribution)
         return mean_mutationrate
 
+    def maxFitness(self):
+        return self.fitness_list[0]
+
+    def minFitness(self):
+        return self.fitness_list[-1]
+
+    def maxMutationrate(self):
+        return self.mutation_list[-1]
+
+    def minMutationrate(self):
+        return self.mutation_list[0]
+
     def mostCommontype(self):
         """
         Returns the mode of the population distribution. Only returns one mode,
@@ -280,20 +292,63 @@ class Population_Store(object):
         if t_lastwrite < t_finish:
             self.diskwrite(t_lastwrite, t_finish)
 
-    def summarystatSimStorage(self, t_start, t_finish, stats2stor):
-        pass
+    def summarystatSimStorage(self, t_start, t_end):
+        f_av_hist = np.zeros((t_end - t_start))
+        mu_av_hist = np.zeros((t_end - t_start))
+        mu_min_hist = np.zeros((t_end - t_start))
+        mu_max_hist = np.zeros((t_end - t_start))
+        f_min_hist = np.zeros((t_end - t_start))
+        f_max_hist = np.zeros((t_end - t_start))
+        mu_mode_hist = np.zeros((t_end - t_start))
+        f_mode_hist = np.zeros((t_end - t_start))
+        for i in range(t_start, t_end):
+            f_av_hist[i] = self.population.meanFitness()
+            mu_av_hist[i] = self.population.meanMutationrate()
+            mu_min_hist[i] = self.population.minMutationrate()
+            mu_max_hist[i] = self.population.maxMutationrate()
+            f_min_hist[i] = self.population.minFitness()
+            f_max_hist[i] = self.population.maxFitness()
+            f_mode_hist[i] = self.population.mostCommontype()[0]
+            mu_mode_hist[i] = self.population.mostCommontype()[1]
+            self.population.update()
+        segment = 'times ' + repr(t_start) + ' to ' + repr(t_end) +\
+            ' summary stats'
+        new_data = self.group.create_group(segment)
+        attr_list = ['delta_fitness', 'mu_multiple', 'fraction_beneficial',
+                     'fraction_accurate', 'fraction_mu2mu', 'pop_cap']
+        for attr in attr_list:
+            new_data.attrs[attr] = getattr(self.population, attr)
+        new_data.attrs['t_start'] = t_start
+        new_data.attrs['t_end'] = t_end
+        new_data.attrs['date'] = repr(datetime.utcnow())
+        new_data.create_dataset('fitness_average', data=f_av_hist,
+                                compression="gzip", compression_opts=4)
+        new_data.create_dataset('mutation_average', data=mu_av_hist,
+                                compression="gzip", compression_opts=4)
+        new_data.create_dataset('fitness_min', data=f_min_hist,
+                                compression="gzip", compression_opts=4)
+        new_data.create_dataset('fitness_max', data=f_max_hist,
+                                compression="gzip", compression_opts=4)
+        new_data.create_dataset('mutation_min', data=mu_min_hist,
+                                compression="gzip", compression_opts=4)
+        new_data.create_dataset('mutation_max', data=mu_max_hist,
+                                compression="gzip", compression_opts=4)
+        new_data.create_dataset('fitness_mode', data=f_mode_hist,
+                                compression="gzip", compression_opts=4)
+        new_data.create_dataset('mutation_mode', data=mu_mode_hist,
+                                compression="gzip", compression_opts=4)
+        self.file.flush()
+        self.population.clear()
+        gc.collect()
 
     def diskwrite(self, t_i, t_iplus):
         segment = 'times ' + repr(t_i) + ' to ' + repr(t_iplus)
         new_data = self.group.create_group(segment)
         dataset_list = ['pop_history', 'fitness_history', 'mutation_history']
         for data in dataset_list:
-            print('before regular it is ' + repr(datetime.utcnow()))
             reg_data = r2r.raggedTo3DRectangle(getattr(self.population, data))
-            print('after regular before write it is' + repr(datetime.utcnow()))
             new_data.create_dataset(data, data=reg_data, compression="gzip",
                                     compression_opts=4, shuffle=True)
-            print('after write it is ' + repr(datetime.utcnow()))
         attr_list = ['delta_fitness', 'mu_multiple', 'fraction_beneficial',
                      'fraction_accurate', 'fraction_mu2mu', 'pop_cap']
         for attr in attr_list:
