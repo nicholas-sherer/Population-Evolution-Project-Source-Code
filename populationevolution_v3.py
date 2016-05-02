@@ -259,8 +259,7 @@ class Population_Store(object):
         self.group = group
         self.file = file
         self.pmw = percent_memory_write
-        self.blobdata = {'time': 0}
-        pass
+        self.blobdata = {'time': time}
 
     @classmethod
     def load_start_from_file(cls, file, load_group, write_group, pmw=10):
