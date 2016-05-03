@@ -224,6 +224,12 @@ class Population(object):
         mode_mutationrate = self.mutation_list[j[0]]
         return (mode_fitness, mode_mutationrate)
 
+    def modeFitness(self):
+        return self.mostCommontype()[0]
+
+    def modeMutationrate(self):
+        return self.mostCommontype()[1]
+
     def getNlk(self, fitness, mutation_rate):
         """
         Returns the number of individuals with a given fitness and mutation
@@ -259,10 +265,10 @@ class Population_Store(object):
         self.group = group
         self.file = file
         self.pmw = percent_memory_write
-        self.blobdata = {'time': time}
+        self.blobdata = {}
 
     @classmethod
-    def load_start_from_file(cls, file, load_group, write_group, pmw=10):
+    def loadStartFromFile(cls, file, load_group, write_group, pmw=10):
         population = Population(0, 0, 0, [0, 0, 0, 0, 0], 0)
         attr_list = ['delta_fitness', 'mu_multiple', 'fraction_beneficial',
                      'fraction_accurate', 'fraction_mu2mu', 'pop_cap']
@@ -278,69 +284,69 @@ class Population_Store(object):
         population.clear()
         return cls(population, file, write_group, time, pmw)
 
+    def initiateSummaryBlob(self):
+        self.blobdata['summary_stats'] = {}
+        summary_stat = self.blobdata['summary_stats']
+        summary_stat['mean_fitness'] = (self.population.meanFitness, [])
+        summary_stat['mean_mutation'] = (self.population.meanMutationrate, [])
+        summary_stat['max_fitness'] = (self.population.maxFitness, [])
+        summary_stat['min_fitness'] = (self.population.minFitness, [])
+        summary_stat['max_mutation'] = (self.population.maxMutationrate, [])
+        summary_stat['min_mutation'] = (self.population.minMutationrate, [])
+        summary_stat['mode_fitness'] = (self.population.modeFitness, [])
+        summary_stat['mode_mutation'] = (self.population.modeMutationrate, [])
+
+    def updateSummaryBlob(self):
+        for item in self.blobdata:
+            item[1].append(item[0]())
+
     def fullSimStorage(self, t_start, t_finish):
         t_lastwrite = t_start
-        print(psutil.Process().memory_percent(memtype='uss'))
         for i in range(t_start, t_finish):
             self.population.update()
             self.population.store()
             if i % 500 == 0 and psutil.Process().memory_percent(memtype='uss')\
                     > self.pmw:
-                self.diskwrite(t_lastwrite, i)
+                self.diskwriteFull(t_lastwrite, i)
+                self.cleanup()
                 t_lastwrite = i + 1
         if t_lastwrite < t_finish:
-            self.diskwrite(t_lastwrite, t_finish)
+            self.diskwriteFull(t_lastwrite, t_finish)
+            self.cleanup()
 
-    def summarystatSimStorage(self, t_start, t_end):
-        f_av_hist = np.zeros((t_end - t_start))
-        mu_av_hist = np.zeros((t_end - t_start))
-        mu_min_hist = np.zeros((t_end - t_start))
-        mu_max_hist = np.zeros((t_end - t_start))
-        f_min_hist = np.zeros((t_end - t_start))
-        f_max_hist = np.zeros((t_end - t_start))
-        mu_mode_hist = np.zeros((t_end - t_start))
-        f_mode_hist = np.zeros((t_end - t_start))
-        for i in range(t_start, t_end):
-            f_av_hist[i] = self.population.meanFitness()
-            mu_av_hist[i] = self.population.meanMutationrate()
-            mu_min_hist[i] = self.population.minMutationrate()
-            mu_max_hist[i] = self.population.maxMutationrate()
-            f_min_hist[i] = self.population.minFitness()
-            f_max_hist[i] = self.population.maxFitness()
-            f_mode_hist[i] = self.population.mostCommontype()[0]
-            mu_mode_hist[i] = self.population.mostCommontype()[1]
+    def summarySimStorage(self, t_start, t_finish):
+        t_lastwrite = t_start
+        for i in range(t_start, t_finish):
+            self.updateSummaryBlob()
             self.population.update()
-        segment = 'times ' + repr(t_start) + ' to ' + repr(t_end) +\
+            if i % 500 == 0 and psutil.Process().memory_percent(memtype='uss')\
+                    > self.pmw:
+                self.diskwriteSummary(t_lastwrite, i)
+                self.initiateSummaryBlob()
+                self.cleanup()
+                t_lastwrite = i + 1
+        if t_lastwrite < t_finish:
+            self.diskwriteSummary(t_lastwrite, t_finish)
+            self.initiateSummaryBlob()
+            self.cleanup()
+
+    def diskwriteSummary(self, t_i, t_iplus):
+        segment = 'times ' + repr(t_i) + ' to ' + repr(t_iplus) +\
             ' summary stats'
         new_data = self.group.create_group(segment)
         attr_list = ['delta_fitness', 'mu_multiple', 'fraction_beneficial',
                      'fraction_accurate', 'fraction_mu2mu', 'pop_cap']
         for attr in attr_list:
             new_data.attrs[attr] = getattr(self.population, attr)
-        new_data.attrs['t_start'] = t_start
-        new_data.attrs['t_end'] = t_end
+        new_data.attrs['t_start'] = t_i
+        new_data.attrs['t_end'] = t_iplus
         new_data.attrs['date'] = repr(datetime.utcnow())
-        new_data.create_dataset('fitness_average', data=f_av_hist,
-                                compression="gzip", compression_opts=4)
-        new_data.create_dataset('mutation_average', data=mu_av_hist,
-                                compression="gzip", compression_opts=4)
-        new_data.create_dataset('fitness_min', data=f_min_hist,
-                                compression="gzip", compression_opts=4)
-        new_data.create_dataset('fitness_max', data=f_max_hist,
-                                compression="gzip", compression_opts=4)
-        new_data.create_dataset('mutation_min', data=mu_min_hist,
-                                compression="gzip", compression_opts=4)
-        new_data.create_dataset('mutation_max', data=mu_max_hist,
-                                compression="gzip", compression_opts=4)
-        new_data.create_dataset('fitness_mode', data=f_mode_hist,
-                                compression="gzip", compression_opts=4)
-        new_data.create_dataset('mutation_mode', data=mu_mode_hist,
-                                compression="gzip", compression_opts=4)
-        self.file.flush()
-        self.population.clear()
-        gc.collect()
+        for key, value in self.blobdata['summary_stats'].items():
+            reg_data = np.array(value[1])
+            new_data.create_dataset(key, data=reg_data, compression="gzip",
+                                    compression_opts=4, shuffle=True)
 
-    def diskwrite(self, t_i, t_iplus):
+    def diskwriteFull(self, t_i, t_iplus):
         segment = 'times ' + repr(t_i) + ' to ' + repr(t_iplus)
         new_data = self.group.create_group(segment)
         dataset_list = ['pop_history', 'fitness_history', 'mutation_history']
@@ -355,6 +361,8 @@ class Population_Store(object):
         new_data.attrs['t_start'] = t_i
         new_data.attrs['t_end'] = t_iplus
         new_data.attrs['date'] = repr(datetime.utcnow())
+
+    def cleanup(self):
         self.file.flush()
         self.population.clear()
         gc.collect()
