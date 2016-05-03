@@ -24,8 +24,10 @@ delta_f_list = [.01, .04]
 f_a_list = [10**-6, 10**-7]
 f_b_list = [10**-6, 10**-7]
 
-filename = 'testing_sweep_approximation.hdf5'
+filename = 'testing_sweep_approximation2.hdf5'
 testfile = h5py.File(filename)
+
+id = 0
 
 for M in M_list:
     for P_mu in P_mu_list:
@@ -40,6 +42,8 @@ for M in M_list:
                     mu_params[4] = P_mu
                     testpop = popev.Population(init_fit_list, init_mu_list,
                                                init_pop_dist, mu_params, K)
+                    testfile.create_group('run' + str(id))
                     testpopstore = popev.Population_Store(testpop, testfile,
                                                           testfile, 0)
-                    testpopstore.summarystatSimStorage(0, 10**8)
+                    testpopstore.summarystatSimStorage(0, 10**7)
+                    id = id + 1
