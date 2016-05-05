@@ -55,9 +55,6 @@ class Population(object):
         self.fraction_accurate = mutation_params[3]
         self.fraction_mu2mu = mutation_params[4]
         self.pop_cap = K
-        self.fitness_history = [np.atleast_2d(self.fitness_list)]
-        self.mutation_history = [np.atleast_2d(self.mutation_list)]
-        self.pop_history = [np.atleast_2d(self.population_distribution)]
 
     def update(self):
         """
@@ -242,16 +239,6 @@ class Population(object):
         else:
             return self.population_distribution[l[0], k[0]]
 
-    def store(self):
-        self.fitness_history.append(np.atleast_2d(self.fitness_list))
-        self.mutation_history.append(np.atleast_2d(self.mutation_list))
-        self.pop_history.append(np.atleast_2d(self.population_distribution))
-
-    def clear(self):
-        self.fitness_history = []
-        self.mutation_history = []
-        self.pop_history = []
-
 
 class Population_Store(object):
     """
@@ -268,6 +255,8 @@ class Population_Store(object):
         self.blobdata = {}
         self.initiateSummaryBlob()
         self.updateSummaryBlob()
+        self.initiateFullBlob()
+        self.updateFullBlob()
 
     @classmethod
     def loadStartFromFile(cls, file, load_group, write_group, pmw=10):
@@ -299,8 +288,19 @@ class Population_Store(object):
         summary_stat['mode_mutation'] = (self.population.modeMutationrate, [])
 
     def updateSummaryBlob(self):
-        for item in self.blobdata:
+        for item in self.blobdata['summary_stats'].values():
             item[1].append(item[0]())
+
+    def initiateFullBlob(self):
+        self.blobdata['full_distribution'] = {}
+        full_stat = self.blobdata['full_distribution']
+        full_stat['fitness_history'] = ('fitness_list', [])
+        full_stat['mutation_history'] = ('mutation_list', [])
+        full_stat['pop_history'] = ('population_distribution', [])
+
+    def updateFullBlob(self):
+        for item in self.blobdata['full_distribution'].values():
+            item[1].append(np.atleast_2d(getattr(self.population, item[0])))
 
     def simStorage(self, t_start, t_finish, temp_store_func, perm_store_func):
         t_lastwrite = t_start
@@ -311,16 +311,16 @@ class Population_Store(object):
             if i % 500 == 0 and psutil.Process().memory_percent(memtype='uss')\
                     > self.pmw:
                 for func in perm_store_func:
-                    func()
+                    func(t_lastwrite, i)
                 self.cleanup()
                 t_lastwrite = i + 1
         if t_lastwrite < t_finish:
             for func in perm_store_func:
-                func()
+                func(t_lastwrite, t_finish)
             self.cleanup()
 
     def fullSimStorage(self, t_start, t_finish):
-        temps = self.population.store
+        temps = self.updateFullBlob
         perms = self.diskwriteFull
         self.simStorage(t_start, t_finish, temps, perms)
 
@@ -330,7 +330,7 @@ class Population_Store(object):
         self.simStorage(t_start, t_finish, temps, perms)
 
     def fullandsummarySimStorage(self, t_start, t_finish):
-        temps = [self.population.store, self.updateSummaryBlob]
+        temps = [self.updateFullBlob, self.updateSummaryBlob]
         perms = [self.diskwriteFull, self.diskwriteSummary]
         self.simStorage(t_start, t_finish, temps, perms)
 
@@ -348,23 +348,22 @@ class Population_Store(object):
             ' summary stats'
         new_data = self.group.create_group(segment)
         self.writeAttributes(new_data, t_i, t_iplus)
-        for key, value in self.blobdata['summary_stats'].items():
-            reg_data = np.array(value[1])
-            new_data.create_dataset(key, data=reg_data, compression="gzip",
+        for k, v in self.blobdata['summary_stats'].items():
+            reg_data = np.array(v[1])
+            new_data.create_dataset(k, data=reg_data, compression="gzip",
                                     compression_opts=4, shuffle=True)
 
     def diskwriteFull(self, t_i, t_iplus):
         segment = 'times ' + repr(t_i) + ' to ' + repr(t_iplus)
         new_data = self.group.create_group(segment)
         self.writeAttributes(new_data, t_i, t_iplus)
-        dataset_list = ['pop_history', 'fitness_history', 'mutation_history']
-        for data in dataset_list:
-            reg_data = r2r.raggedTo3DRectangle(getattr(self.population, data))
-            new_data.create_dataset(data, data=reg_data, compression="gzip",
+        for k, v in self.blobdata['full_distribution'].items():
+            reg_data = r2r.raggedTo3DRectangle(v[1])
+            new_data.create_dataset(k, data=reg_data, compression="gzip",
                                     compression_opts=4, shuffle=True)
 
     def cleanup(self):
         self.file.flush()
         self.initiateSummaryBlob()
-        self.population.clear()
+        self.initiateFullBlob()
         gc.collect()
