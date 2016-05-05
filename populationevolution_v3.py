@@ -316,6 +316,7 @@ class Population_Store(object):
 
     def summarySimStorage(self, t_start, t_finish):
         t_lastwrite = t_start
+        self.initiateSummaryBlob()
         for i in range(t_start, t_finish):
             self.updateSummaryBlob()
             self.population.update()
@@ -330,10 +331,27 @@ class Population_Store(object):
             self.initiateSummaryBlob()
             self.cleanup()
 
-    def diskwriteSummary(self, t_i, t_iplus):
-        segment = 'times ' + repr(t_i) + ' to ' + repr(t_iplus) +\
-            ' summary stats'
-        new_data = self.group.create_group(segment)
+    def fullandsummarySimStorage(self, t_start, t_finish):
+        t_lastwrite = t_start
+        self.initiateSummaryBlob()
+        for i in range(t_start, t_finish):
+            self.updateSummaryBlob()
+            self.population.update()
+            self.population.store()
+            if i % 500 == 0 and psutil.Process().memory_percent(memtype='uss')\
+                    > self.pmw:
+                self.diskwriteFull(t_lastwrite, i)
+                self.diskwriteSummary(t_lastwrite, i)
+                self.initiateSummaryBlob()
+                self.cleanup()
+                t_lastwrite = i + 1
+        if t_lastwrite < t_finish:
+            self.diskwriteFull(t_lastwrite, t_finish)
+            self.diskwriteSummary(t_lastwrite, t_finish)
+            self.initiateSummaryBlob()
+            self.cleanup()
+
+    def writeAttributes(self, new_data, t_i, t_iplus):
         attr_list = ['delta_fitness', 'mu_multiple', 'fraction_beneficial',
                      'fraction_accurate', 'fraction_mu2mu', 'pop_cap']
         for attr in attr_list:
@@ -341,6 +359,12 @@ class Population_Store(object):
         new_data.attrs['t_start'] = t_i
         new_data.attrs['t_end'] = t_iplus
         new_data.attrs['date'] = repr(datetime.utcnow())
+
+    def diskwriteSummary(self, t_i, t_iplus):
+        segment = 'times ' + repr(t_i) + ' to ' + repr(t_iplus) +\
+            ' summary stats'
+        new_data = self.group.create_group(segment)
+        self.writeAttributes(new_data, t_i, t_iplus)
         for key, value in self.blobdata['summary_stats'].items():
             reg_data = np.array(value[1])
             new_data.create_dataset(key, data=reg_data, compression="gzip",
@@ -349,18 +373,12 @@ class Population_Store(object):
     def diskwriteFull(self, t_i, t_iplus):
         segment = 'times ' + repr(t_i) + ' to ' + repr(t_iplus)
         new_data = self.group.create_group(segment)
+        self.writeAttributes(new_data, t_i, t_iplus)
         dataset_list = ['pop_history', 'fitness_history', 'mutation_history']
         for data in dataset_list:
             reg_data = r2r.raggedTo3DRectangle(getattr(self.population, data))
             new_data.create_dataset(data, data=reg_data, compression="gzip",
                                     compression_opts=4, shuffle=True)
-        attr_list = ['delta_fitness', 'mu_multiple', 'fraction_beneficial',
-                     'fraction_accurate', 'fraction_mu2mu', 'pop_cap']
-        for attr in attr_list:
-            new_data.attrs[attr] = getattr(self.population, attr)
-        new_data.attrs['t_start'] = t_i
-        new_data.attrs['t_end'] = t_iplus
-        new_data.attrs['date'] = repr(datetime.utcnow())
 
     def cleanup(self):
         self.file.flush()
