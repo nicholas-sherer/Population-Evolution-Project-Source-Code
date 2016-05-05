@@ -266,6 +266,8 @@ class Population_Store(object):
         self.file = file
         self.pmw = percent_memory_write
         self.blobdata = {}
+        self.initiateSummaryBlob()
+        self.updateSummaryBlob()
 
     @classmethod
     def loadStartFromFile(cls, file, load_group, write_group, pmw=10):
@@ -300,56 +302,37 @@ class Population_Store(object):
         for item in self.blobdata:
             item[1].append(item[0]())
 
-    def fullSimStorage(self, t_start, t_finish):
+    def simStorage(self, t_start, t_finish, temp_store_func, perm_store_func):
         t_lastwrite = t_start
         for i in range(t_start, t_finish):
             self.population.update()
-            self.population.store()
+            for func in temp_store_func:
+                func()
             if i % 500 == 0 and psutil.Process().memory_percent(memtype='uss')\
                     > self.pmw:
-                self.diskwriteFull(t_lastwrite, i)
+                for func in perm_store_func:
+                    func()
                 self.cleanup()
                 t_lastwrite = i + 1
         if t_lastwrite < t_finish:
-            self.diskwriteFull(t_lastwrite, t_finish)
+            for func in perm_store_func:
+                func()
             self.cleanup()
+
+    def fullSimStorage(self, t_start, t_finish):
+        temps = self.population.store
+        perms = self.diskwriteFull
+        self.simStorage(t_start, t_finish, temps, perms)
 
     def summarySimStorage(self, t_start, t_finish):
-        t_lastwrite = t_start
-        self.initiateSummaryBlob()
-        for i in range(t_start, t_finish):
-            self.updateSummaryBlob()
-            self.population.update()
-            if i % 500 == 0 and psutil.Process().memory_percent(memtype='uss')\
-                    > self.pmw:
-                self.diskwriteSummary(t_lastwrite, i)
-                self.initiateSummaryBlob()
-                self.cleanup()
-                t_lastwrite = i + 1
-        if t_lastwrite < t_finish:
-            self.diskwriteSummary(t_lastwrite, t_finish)
-            self.initiateSummaryBlob()
-            self.cleanup()
+        temps = self.updateSummaryBlob
+        perms = self.diskwriteFull
+        self.simStorage(t_start, t_finish, temps, perms)
 
     def fullandsummarySimStorage(self, t_start, t_finish):
-        t_lastwrite = t_start
-        self.initiateSummaryBlob()
-        for i in range(t_start, t_finish):
-            self.updateSummaryBlob()
-            self.population.update()
-            self.population.store()
-            if i % 500 == 0 and psutil.Process().memory_percent(memtype='uss')\
-                    > self.pmw:
-                self.diskwriteFull(t_lastwrite, i)
-                self.diskwriteSummary(t_lastwrite, i)
-                self.initiateSummaryBlob()
-                self.cleanup()
-                t_lastwrite = i + 1
-        if t_lastwrite < t_finish:
-            self.diskwriteFull(t_lastwrite, t_finish)
-            self.diskwriteSummary(t_lastwrite, t_finish)
-            self.initiateSummaryBlob()
-            self.cleanup()
+        temps = [self.population.store, self.updateSummaryBlob]
+        perms = [self.diskwriteFull, self.diskwriteSummary]
+        self.simStorage(t_start, t_finish, temps, perms)
 
     def writeAttributes(self, new_data, t_i, t_iplus):
         attr_list = ['delta_fitness', 'mu_multiple', 'fraction_beneficial',
@@ -382,5 +365,6 @@ class Population_Store(object):
 
     def cleanup(self):
         self.file.flush()
+        self.initiateSummaryBlob()
         self.population.clear()
         gc.collect()
