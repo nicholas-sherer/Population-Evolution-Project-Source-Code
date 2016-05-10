@@ -24,5 +24,5 @@ testfile = h5py.File(filename)
 
 testpop = popev.Population(init_fit_list, init_mu_list,
                            init_pop_dist, mu_params, K)
-testpopstore = popev.Population_Store(testpop, testfile, testfile, 0)
+testpopstore = popev.Population_Store(testpop, testfile, testfile, 0, .5)
 testpopstore.fullandsummarySimStorage(0, 3000)
