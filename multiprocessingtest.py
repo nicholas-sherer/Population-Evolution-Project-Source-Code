@@ -16,13 +16,13 @@ from datetime import datetime
 import multiprocessing
 
 
-def multiPopDummy(object):
+class multiPopDummy(object):
     """
     Since hdf5 file handles aren't pickleable this is just the stuff
     you need to make a popteststore object with file and group name strings
     instead of hdf5 objects
     """
-    def __init__(self, population, filename, time, groupname=None, pmw=10):
+    def __init__(self, population, filename, time, groupname=None, pmw=5):
         self.population = population
         self.filename = filename
         self.groupname = groupname
