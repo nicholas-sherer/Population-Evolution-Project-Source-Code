@@ -20,7 +20,7 @@ def fixationProbability(N, s):
 
 
 def effectiveFitnessDifference(f_1, f_2, mu_1, mu_2, P_mu):
-    return f_2 - f_1 + (1 - P_mu) * (mu_1 - mu_2)
+    return f_2 - f_1 + (mu_1 - mu_2)
 
 
 def powerOfMultiple(mu1, mu2, mu_multiple):
@@ -38,8 +38,8 @@ def findNl0(P_mu, mu_min, delta_f, l):
     if l == 0:
         return 1
     else:
-        return (1 - P_mu) * mu_min / (l * delta_f) * \
-            findNl0(P_mu, delta_f, mu_min, l-1)
+        return (1 - P_mu) * mu_min / (l * delta_f) *\
+            findNl0(P_mu, mu_min, delta_f, l-1)
 
 
 def findNlk(P_mu, M, mu_min, delta_f, k, l):
