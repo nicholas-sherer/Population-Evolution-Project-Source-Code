@@ -13,6 +13,8 @@ import h5py
 
 import numpy as np
 
+import gc
+
 # mu_min = delta_f / (2*(M-1))
 
 
@@ -90,14 +92,68 @@ def repeatInvasions(P_mu, M, mu_min, delta_f, K, mu_inv_ind, repeat_num):
         count += 1
         pop = popev.Population(f_list, mu_list, pop_dist, mu_params, K)
         successes += invasion(pop, mu_inv_ind, threshold)
-    P_suc_est = successes / count
-    P_suc_std = np.sqrt(P_suc_est*(1 - P_suc_est)/count)
     if mu_inv_ind == -1:
         s = SAF.effectiveFitnessDifference(0, 0, mu_min, mu_min / M)
     elif mu_inv_ind >= 0:
         s = SAF.effectiveFitnessDifference(0, delta_f, mu_min,
                                            mu_min*M**mu_inv_ind)
     theor_pfix = SAF.fixationProbability(K, s)
-    error = np.abs(P_suc_est - theor_pfix)
-    deviations = error / P_suc_std
-    return (P_suc_est, P_suc_std, theor_pfix, error, deviations)
+    theor_mean = count*theor_pfix
+    theor_std = np.sqrt(count*theor_pfix*(1-theor_pfix))
+    error = np.abs(successes - theor_mean)
+    deviations = error / theor_std
+    return (theor_mean, successes, count, error, deviations)
+
+
+class fixationProbTableStorage(object):
+
+    def __init__(self, hdf5_file, params_list, repeat_num=1000):
+        assert(isinstance(hdf5_file, h5py.File))
+        self.hdf5_file = hdf5_file
+        self.params_list = params_list
+        self.theor_mean_list = []
+        self.exp_mean_list = []
+        self.count_list = []
+        self.error_list = []
+        self.deviations_from_mean_list = []
+        self.repeat_num = repeat_num
+
+    def computeFixationProbabilities(self):
+        for params in self.params_list:
+            P_mu = params[0]
+            M = params[1]
+            mu_min = params[2]
+            delta_f = params[3]
+            K = params[4]
+            mu_inv = params[5]
+            N = self.repeat_num
+            answer = repeatInvasions(P_mu, M, mu_min, delta_f, K, mu_inv, N)
+            self.theor_mean_list.append(answer[0])
+            self.exp_mean_list.append(answer[1])
+            self.count_list.append(answer[2])
+            self.error_list.append(answer[3])
+            self.deviations_from_mean_list.append(answer[4])
+
+    def storeResults(self):
+        np_params_arr = np.transpose(np.array(self.params_list))
+        np_results_arr = np.array([self.theor_mean_list, self.exp_mean_list,
+                                   self.count_list, self.error_list,
+                                   self.deviations_from_mean_list])
+        np_whole_arr = np.vstack((np_params_arr, np_results_arr))
+        data = self.hdf5_file.create_dataset('Fixation Probabilities',
+                                             shape=(11,), data=np_whole_arr,
+                                             compression="gzip",
+                                             compression_opts=4, shuffle=True)
+        data.attrs['row1'] = 'P_mu'
+        data.attrs['row2'] = 'M'
+        data.attrs['row3'] = 'mu_min'
+        data.attrs['row4'] = 'delta_f'
+        data.attrs['row5'] = 'K'
+        data.attrs['row6'] = 'mu_inv_ind'
+        data.attrs['row7'] = 'theoretical_mean'
+        data.attrs['row8'] = 'experimental_mean'
+        data.attrs['row9'] = 'total_invasion_attempts'
+        data.attrs['row10'] = 'error'
+        data.attrs['row11'] = 'error_over_theoretical_standard_deviation'
+        self.hdf5_file.flush()
+        gc.collect()
