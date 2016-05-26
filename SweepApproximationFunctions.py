@@ -19,7 +19,7 @@ def fixationProbability(N, s):
         return 0
 
 
-def effectiveFitnessDifference(f_1, f_2, mu_1, mu_2, P_mu):
+def effectiveFitnessDifference(f_1, f_2, mu_1, mu_2):
     return f_2 - f_1 + (mu_1 - mu_2)
 
 
