@@ -234,10 +234,10 @@ class Population(object):
         """
         l = np.where(self.fitness_list == fitness)
         k = np.where(self.mutation_list == mutation_rate)
-        if l[0].size == 0 or k[0].size == 0:
+        if self.population_distribution[l[0], k].size == 0:
             return 0
         else:
-            return self.population_distribution[l[0], k[0]]
+            return self.population_distribution[l[0], k]
 
 
 class Population_Store(object):
