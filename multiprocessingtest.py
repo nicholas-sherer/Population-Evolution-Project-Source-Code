@@ -44,9 +44,10 @@ def dummytoReal(dummy):
     return real
 
 
-def multiprocSimFunc(dummy, t_start, t_finish):
+def multiprocSimFunc(dummy):
     popstore = dummytoReal(dummy)
-    popstore.fullandsummarySimStorage(t_start, t_finish)
+    popstore.fullandsummarySimStorage(0, dummy.time)
+    return 1
 
 init_fit_list = np.array([0])
 init_mu_list = np.array([.01])
@@ -59,10 +60,12 @@ for i in range(6):
     filename = 'testing_code' + str(i) + repr(datetime.utcnow()) + '.hdf5'
     testpop = popev.Population(init_fit_list, init_mu_list,
                                init_pop_dist, mu_params, K)
-    dummy_list.append(multiPopDummy(testpop, filename, 0))
+    dummy_list.append(multiPopDummy(testpop, filename, 3000))
 
 if __name__ == '__main__':
     print(str(datetime.utcnow()))
-    ped = multiprocessing.Pool(5)
-    print(ped.map(multiprocSimFunc, dummy_list))
+    ped = multiprocessing.Pool(6)
+    result = ped.map(multiprocSimFunc, dummy_list)
+    ped.close()
+    ped.join()
     print(str(datetime.utcnow()))

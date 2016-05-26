@@ -319,6 +319,25 @@ class Population_Store(object):
                 func(t_lastwrite, t_finish)
             self.cleanup()
 
+    def simStorageC(self, t_start, stop_con, temp_store_func, perm_store_func):
+        t_lastwrite = t_start
+        i = t_start
+        while stop_con() is False:
+            i += 1
+            self.population.update()
+            for func in temp_store_func:
+                func()
+            if i % 500 == 0 and psutil.Process().memory_percent(memtype='uss')\
+                    > self.pmw:
+                for func in perm_store_func:
+                    func(t_lastwrite, i)
+                self.cleanup()
+                t_lastwrite = i + 1
+        if t_lastwrite < i + 1:
+            for func in perm_store_func:
+                func(t_lastwrite, i)
+            self.cleanup()
+
     def fullSimStorage(self, t_start, t_finish):
         temps = self.updateFullBlob
         perms = self.diskwriteFull
