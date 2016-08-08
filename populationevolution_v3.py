@@ -430,7 +430,7 @@ class Population_Store(object):
     def cleanup(self):
         """
         Used to force the hdf5 file buffers to flush and restart the summary
-        blobs.
+        blobs. This prevents slowdown from Python using up too much memory.
         """
         self.file.flush()
         self.initiateSummaryBlob()

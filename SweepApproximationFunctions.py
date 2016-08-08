@@ -10,6 +10,31 @@ from __future__ import division
 import numpy as np
 
 
+def testApproxIneq(M, f_b, f_a, P_mu, K):
+    """
+    This returns whether or not the parameters chosen fulfill the three
+    inequalities that must be satisfied for the mutation followed by sweep
+    approximation to the full model to work.
+    """
+    M_test = testMIneq(M)
+    P_mu_test = testP_muIneq(M, P_mu)
+    fix_time_test = testFixIneq(M, f_b, f_a, P_mu, K)
+    return M_test and P_mu_test and fix_time_test
+
+
+def testMIneq(M):
+    return M > (1 + np.sqrt(5))/2
+
+
+def testP_muIneq(M, P_mu):
+    return (1 - P_mu)*M > 1
+
+
+def testFixIneq(M, f_b, f_a, P_mu, K):
+    x = (1 - 1/M) > (f_a*P_mu + f_b*(1-P_mu)*(M-1)/((1-P_mu)*M-1))*K*np.log(K)
+    return x
+
+
 def fixationProbability(N, s):
     """
     Computes the classical fixation probability for an invader against a
