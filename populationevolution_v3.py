@@ -67,6 +67,10 @@ class Population(object):
         self.trimUpdates()
 
     def updateFitnessList(self):
+        """
+        This updates the list of fitnesses by adding a new highest and new
+        lowest fitness.
+        """
         num_fit = np.size(self.fitness_list)
         temp_list = np.zeros((num_fit+2, 1))
         temp_list[0] = self.fitness_list[0] + self.delta_fitness
@@ -75,6 +79,10 @@ class Population(object):
         self.fitness_list = temp_list
 
     def updateMutationList(self):
+        """
+        This updates the list of mutation rates by adding a new highest and new
+        lowest mutation rate.
+        """
         num_mut = np.size(self.mutation_list)
         temp_list = np.zeros(num_mut+2)
         temp_list[0] = self.mutation_list[0] / self.mu_multiple
@@ -83,6 +91,10 @@ class Population(object):
         self.mutation_list = temp_list
 
     def updatePopulationDistribution(self):
+        """
+        This updates the population distribution itself using a replicator-
+        mutator type scheme.
+        """
         self.updatePopulationFitness()
         self.updatePopulationMutation()
         self.updatePopulationRegulation()
@@ -90,6 +102,10 @@ class Population(object):
             np.random.poisson(self.population_distribution)
 
     def updatePopulationFitness(self):
+        """
+        This step is the exponential growth/decay in the population using
+        the mean fitness as a penalty to fix the population size.
+        """
         mean_fitness = self.meanFitness()
         delta_fitness_list = self.fitness_list - mean_fitness
         growth_vector = np.exp(delta_fitness_list)
@@ -97,6 +113,9 @@ class Population(object):
             self.population_distribution * growth_vector
 
     def updatePopulationMutation(self):
+        """
+        This function calls all the subfunctions that deal with mutations.
+        """
         temp_nonmut = self.nonMutants()
         temp_f_up = self.fitnessUpMutants()
         temp_f_down = self.fitnessDownMutants()
@@ -150,6 +169,11 @@ class Population(object):
         return mu_down_mut
 
     def updatePopulationRegulation(self):
+        """
+        This term controls population size by multiplying the current
+        population in each bin by the carrying capacity divided by the current
+        total population.
+        """
         pop_size = np.sum(self.population_distribution)
         self.population_distribution = \
             self.population_distribution * self.pop_cap / pop_size
@@ -197,15 +221,27 @@ class Population(object):
         return mean_mutationrate
 
     def maxFitness(self):
+        """
+        Returns the highest fitness in the population.
+        """
         return self.fitness_list[0]
 
     def minFitness(self):
+        """
+        Returns the lowest fitness in the population.
+        """
         return self.fitness_list[-1]
 
     def maxMutationrate(self):
+        """
+        Returns the highest mutation rate in the population.
+        """
         return self.mutation_list[-1]
 
     def minMutationrate(self):
+        """
+        Returns the lowest mutation rate in the population.
+        """
         return self.mutation_list[0]
 
     def mostCommontype(self):
@@ -247,12 +283,18 @@ class Population_Store(object):
     """
 
     def __init__(self, population, file, group, time, percent_memory_write=10):
+        """
+        The simplest way to initialize a new population store object. First
+        make a population object, and and hdf5 file handle and the group where
+        you want to store the data.
+        """
         assert(isinstance(group, h5py.Group)), "%r isn't an hdf5 group" % group
         self.population = population
         self.group = group
         self.file = file
         self.pmw = percent_memory_write
         self.blobdata = {}
+        self.time = time
         self.initiateSummaryBlob()
         self.updateSummaryBlob()
         self.initiateFullBlob()
@@ -260,6 +302,10 @@ class Population_Store(object):
 
     @classmethod
     def loadStartFromFile(cls, file, load_group, write_group, pmw=10):
+        """
+        This is a way of starting from the endpoint of a run previously saved
+        in an hdf5 file.
+        """
         population = Population(0, 0, 0, [0, 0, 0, 0, 0], 0)
         attr_list = ['delta_fitness', 'mu_multiple', 'fraction_beneficial',
                      'fraction_accurate', 'fraction_mu2mu', 'pop_cap']
@@ -382,6 +428,10 @@ class Population_Store(object):
                                     compression_opts=4, shuffle=True)
 
     def cleanup(self):
+        """
+        Used to force the hdf5 file buffers to flush and restart the summary
+        blobs.
+        """
         self.file.flush()
         self.initiateSummaryBlob()
         self.initiateFullBlob()
