@@ -11,6 +11,13 @@ import numpy as np
 
 
 def fixationProbability(N, s):
+    """
+    Computes the classical fixation probability for an invader against a
+    wildtype assuming no further mutations and only the only two fitnesses are
+    the invader and the wildtype. The elif statement is there to handle the
+    problem of float-induced error when dividing small numbers by small
+    numbers.
+    """
     if s > 1 / N:
         return (1 - np.exp(-2*s))/(1 - np.exp(-4*N*s))
     elif s > -1 / N:
@@ -24,6 +31,10 @@ def effectiveFitnessDifference(f_1, f_2, mu_1, mu_2):
 
 
 def powerOfMultiple(mu1, mu2, mu_multiple):
+    """
+    Given mu1, mu2, and mu_multiple, this computes the k such that mu2 = mu2 *
+    mu_multiple^k
+    """
     return np.round(np.log(mu2/mu1)/np.log(mu_multiple))
 
 
@@ -74,7 +85,7 @@ def findTransitionRate(mu_1, mu_2, delta_f, M, f_b, f_a, P_mu, K):
 
 
 def findMutatorSweepRate(mu_1, mu_2, delta_f, M, f_b, P_mu, K):
-    s = effectiveFitnessDifference(0, delta_f, mu_1, mu_2, P_mu)
+    s = effectiveFitnessDifference(0, delta_f, mu_1, mu_2)
     p_fix = fixationProbability(K, s)
     k = powerOfMultiple(mu_1, mu_2, M)
     N_eff = findN00overN(P_mu, M, mu_1, delta_f, 10, 10) * findN0k(P_mu, M, k)
@@ -84,7 +95,7 @@ def findMutatorSweepRate(mu_1, mu_2, delta_f, M, f_b, P_mu, K):
 
 
 def findAntiMutatorSweepRate(mu_1, mu_2, delta_f, M, f_a, P_mu, K):
-    s = effectiveFitnessDifference(0, 0, mu_1, mu_2, P_mu)
+    s = effectiveFitnessDifference(0, 0, mu_1, mu_2)
     p_fix = fixationProbability(K, s)
     k = powerOfMultiple(mu_1, mu_2, M)
     if k < -1.00:

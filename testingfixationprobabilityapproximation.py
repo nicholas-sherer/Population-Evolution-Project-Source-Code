@@ -141,19 +141,19 @@ class fixationProbTableStorage(object):
                                    self.deviations_from_mean_list])
         np_whole_arr = np.vstack((np_params_arr, np_results_arr))
         data = self.hdf5_file.create_dataset('Fixation Probabilities',
-                                             shape=(11,), data=np_whole_arr,
+                                             data=np_whole_arr,
                                              compression="gzip",
                                              compression_opts=4, shuffle=True)
-        data.attrs['row1'] = 'P_mu'
-        data.attrs['row2'] = 'M'
-        data.attrs['row3'] = 'mu_min'
-        data.attrs['row4'] = 'delta_f'
-        data.attrs['row5'] = 'K'
-        data.attrs['row6'] = 'mu_inv_ind'
-        data.attrs['row7'] = 'theoretical_mean'
-        data.attrs['row8'] = 'experimental_mean'
-        data.attrs['row9'] = 'total_invasion_attempts'
-        data.attrs['row10'] = 'error'
-        data.attrs['row11'] = 'error_over_theoretical_standard_deviation'
+        data.attrs['row0'] = 'P_mu'
+        data.attrs['row1'] = 'M'
+        data.attrs['row2'] = 'mu_min'
+        data.attrs['row3'] = 'delta_f'
+        data.attrs['row4'] = 'K'
+        data.attrs['row5'] = 'mu_inv_ind'
+        data.attrs['row6'] = 'theoretical_mean'
+        data.attrs['row7'] = 'experimental_mean'
+        data.attrs['row8'] = 'total_invasion_attempts'
+        data.attrs['row9'] = 'error'
+        data.attrs['row10'] = 'error_over_theoretical_standard_deviation'
         self.hdf5_file.flush()
         gc.collect()
