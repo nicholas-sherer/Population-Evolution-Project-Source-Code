@@ -24,7 +24,7 @@ delta_f_list = [.01, .04]
 f_a_list = [10**-6, 10**-7]
 f_b_list = [10**-6, 10**-7]
 
-filename = 'testing_sweep_approximation2.hdf5'
+filename = 'testing_sweep_approximation3.hdf5'
 testfile = h5py.File(filename)
 
 id = 0
