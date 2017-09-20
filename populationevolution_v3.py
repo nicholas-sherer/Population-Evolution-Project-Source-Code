@@ -48,13 +48,41 @@ class Population(object):
         """
         self.fitness_list = fitness_list
         self.mutation_list = mutation_list
-        self.population_distribution = population_distribution
-        self.delta_fitness = mutation_params[0]
-        self.mu_multiple = mutation_params[1]
-        self.fraction_beneficial = mutation_params[2]
-        self.fraction_accurate = mutation_params[3]
-        self.fraction_mu2mu = mutation_params[4]
-        self.pop_cap = K
+
+        if np.all(population_distribution>=0):
+            self.population_distribution = population_distribution
+        else:
+            raise ValueError('the population distribution must be nonnegative')
+
+        if mutation_params[0] > 0:
+            self.delta_fitness = mutation_params[0]
+        else:
+            raise ValueError('delta fitness must be positive')
+
+        if mutation_params[1] > 1:
+            self.mu_multiple = mutation_params[1]
+        else:
+            raise ValueError('mu multiple must be greater than one')
+
+        if mutation_params[2] < 1 and mutation_params[2] >= 0:
+            self.fraction_beneficial = mutation_params[2]
+        else:
+            raise ValueError('fraction beneficial must be >= 0 and < 1')
+
+        if mutation_params[3] < 1 and mutation_params[3] >= 0:
+            self.fraction_accurate = mutation_params[3]
+        else:
+            raise ValueError('fraction accurate must be >=0 and < 1')
+
+        if mutation_params[4] < 1 and mutation_params[4] >=0:
+            self.fraction_mu2mu = mutation_params[4]
+        else:
+            raise ValueError('fraction_mu2mu must be >=0 and < 1')
+
+        if K >= 1:
+            self.pop_cap = K
+        else:
+            raise ValueError('pop_cap must be greater than or equal to 1')
 
     def update(self):
         """
