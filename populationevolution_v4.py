@@ -88,8 +88,11 @@ class Population(object):
         population = cls(f_max, mu_min, population_distribution, delta_fitness,
                          mu_multiple, fraction_beneficial, fraction_accurate,
                          fraction_mu2mu, K)
-        population.fitness_list = fitness_list
-        population.mutation_list = mutation_list
+        if population.population_distribution.shape != \
+            (population.fitness_list.size, population.mutation_list.size):
+            raise ValueError('''Shapes must be compatible''')
+        population.fitness_list = np.atleast_2d(np.array(fitness_list))
+        population.mutation_list = np.atleast_1d(np.array(mutation_list))
         return population
 
     @classmethod

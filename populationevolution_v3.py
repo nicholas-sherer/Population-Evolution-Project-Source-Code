@@ -79,10 +79,10 @@ class Population(object):
         else:
             raise ValueError('fraction_mu2mu must be >=0 and < 1')
 
-        if K >= 1:
+        if K >= 100:
             self.pop_cap = K
         else:
-            raise ValueError('pop_cap must be greater than or equal to 1')
+            raise ValueError('pop_cap must be greater than or equal to 100')
 
     def update(self):
         """
@@ -310,12 +310,15 @@ class Population_Store(object):
     the proper manner.
     """
 
-    def __init__(self, population, file, group, time, percent_memory_write=10):
+    def __init__(self, population, file, group=None, time=0,
+                 percent_memory_write=10):
         """
         The simplest way to initialize a new population store object. First
         make a population object, and and hdf5 file handle and the group where
         you want to store the data.
         """
+        if group is None:
+            group = file
         assert(isinstance(group, h5py.Group)), "%r isn't an hdf5 group" % group
         self.population = population
         self.group = group
@@ -334,19 +337,16 @@ class Population_Store(object):
         This is a way of starting from the endpoint of a run previously saved
         in an hdf5 file.
         """
-        population = Population(0, 0, 0, [0, 0, 0, 0, 0], 0)
-        attr_list = ['delta_fitness', 'mu_multiple', 'fraction_beneficial',
-                     'fraction_accurate', 'fraction_mu2mu', 'pop_cap']
-        for attr in attr_list:
-            population.__dict__[attr] = load_group.attrs[attr]
-        dataset_list = ['pop_history', 'fitness_history', 'mutation_history']
-        insert_list = ['population_distribution', 'fitness_list',
-                       'mutation_list']
-        for i in range(len(dataset_list)):
-            dslice = load_group[dataset_list[i]][:, :, -1]
-            population.__dict__[insert_list[i]] = dslice
+        params_list = ['delta_fitness', 'mu_multiple', 'fraction_beneficial',
+                     'fraction_accurate', 'fraction_mu2mu']
+        mu_params = [load_group.attrs[attr] for attr in params_list]
+        K = load_group.attrs['pop_cap']
+        fitness_list = load_group['fitness_history'][:,:,-1]
+        mutation_list = load_group['mutation_history'][:,:,-1]
+        population_distribution = load_group['pop_history'][:,:,-1]
+        population = Population(fitness_list, mutation_list,
+                                population_distribution, mu_params, K)
         time = load_group.attrs['t_end'] + 1
-        population.clear()
         return cls(population, file, write_group, time, pmw)
 
     def initiateSummaryBlob(self):
@@ -392,6 +392,7 @@ class Population_Store(object):
             for func in perm_store_func:
                 func(t_lastwrite, t_finish)
             self.cleanup()
+            t_lastwrite = t_finish
 
     def simStorageC(self, t_start, stop_con, temp_store_func, perm_store_func):
         t_lastwrite = t_start
@@ -419,7 +420,7 @@ class Population_Store(object):
 
     def summarySimStorage(self, t_start, t_finish):
         temps = self.updateSummaryBlob
-        perms = self.diskwriteFull
+        perms = self.diskwriteSummary
         self.simStorage(t_start, t_finish, temps, perms)
 
     def fullandsummarySimStorage(self, t_start, t_finish):
