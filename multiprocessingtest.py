@@ -9,7 +9,7 @@ import numpy as np
 
 import h5py
 
-import populationevolution_v3 as popev
+import populationevolution_v4 as popev
 
 from datetime import datetime
 
@@ -36,10 +36,10 @@ def dummytoReal(dummy):
         if dummy.groupname not in list(hdf5file.keys()):
             hdf5file.create_group(dummy.groupname)
         hdf5group = hdf5file[dummy.groupname]
-        real = popev.Population_Store(dummy.population, hdf5file, hdf5group,
+        real = popev.PopulationStore(dummy.population, hdf5file, hdf5group,
                                       dummy.time, dummy.pmw)
     else:
-        real = popev.Population_Store(dummy.population, hdf5file, hdf5file,
+        real = popev.PopulationStore(dummy.population, hdf5file, hdf5file,
                                       dummy.time, dummy.pmw)
     return real
 
@@ -47,6 +47,7 @@ def dummytoReal(dummy):
 def multiprocSimFunc(dummy):
     popstore = dummytoReal(dummy)
     popstore.fullandsummarySimStorage(0, dummy.time)
+    popstore.file.close()
     return 1
 
 init_fit_list = np.array([0])
@@ -56,11 +57,11 @@ init_pop_dist = np.array([K])
 mu_params = [.04, 3, 10**-4, 10**-4, .1]
 dummy_list = []
 
-for i in range(6):
+for i in range(4):
     filename = 'testing_code' + str(i) + repr(datetime.utcnow()) + '.hdf5'
     testpop = popev.Population(init_fit_list, init_mu_list,
-                               init_pop_dist, mu_params, K)
-    dummy_list.append(multiPopDummy(testpop, filename, 3000))
+                               init_pop_dist, *mu_params, K)
+    dummy_list.append(multiPopDummy(testpop, filename, 30000))
 
 if __name__ == '__main__':
     print(str(datetime.utcnow()))
