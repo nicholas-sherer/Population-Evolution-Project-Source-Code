@@ -39,9 +39,9 @@ class Population(object):
         model. Population_distribution should be a single number or a numpy
         array.
         """
-        
+
         self.population_distribution = \
-            np.atleast_2d(np.array(population_distribution,dtype='int64'))
+            np.atleast_2d(np.array(population_distribution, dtype='int64'))
         if np.any(self.population_distribution) < 0:
             raise ValueError('the population distribution must be nonnegative')
         pop_shape = self.population_distribution.shape
@@ -55,34 +55,36 @@ class Population(object):
             raise ValueError('mu multiple must be greater than one')
 
         self.fraction_beneficial = fraction_beneficial
-        if self.fraction_beneficial >=1 or self.fraction_beneficial < 0:
+        if self.fraction_beneficial >= 1 or self.fraction_beneficial < 0:
             raise ValueError('fraction beneficial must be >= 0 and < 1')
 
         self.fraction_accurate = fraction_accurate
-        if self.fraction_accurate >=1 or self.fraction_accurate < 0:
+        if self.fraction_accurate >= 1 or self.fraction_accurate < 0:
             raise ValueError('fraction accurate must be >=0 and < 1')
 
         self.fraction_mu2mu = fraction_mu2mu
-        if self.fraction_mu2mu >=1 or self.fraction_mu2mu < 0:
+        if self.fraction_mu2mu >= 1 or self.fraction_mu2mu < 0:
             raise ValueError('fraction_mu2mu must be >=0 and < 1')
 
         self.pop_cap = K
         if self.pop_cap < 100:
             raise ValueError('pop_cap must be greater than or equal to 100')
 
+        f_min = f_max - delta_fitness*(pop_shape[0]-1)
         self.fitness_list = np.transpose(np.atleast_2d(np.linspace(f_max,
-                                        f_max - delta_fitness*(pop_shape[0]-1),
-                                        pop_shape[0])))
-        
+                                         f_min, pop_shape[0])))
+
         self.mutation_list = np.geomspace(mu_min,
                                           mu_min*mu_multiple**(pop_shape[1]-1),
                                           pop_shape[1])
 
+        self._trimUpdates()
+
     @classmethod
     def arrayInit(cls, fitness_list, mutation_list,
-                            population_distribution, delta_fitness,
-                            mu_multiple, fraction_beneficial,
-                            fraction_accurate, fraction_mu2mu, K):
+                  population_distribution, delta_fitness,
+                  mu_multiple, fraction_beneficial,
+                  fraction_accurate, fraction_mu2mu, K):
         f_max = fitness_list[0]
         mu_min = mutation_list[0]
         population = cls(f_max, mu_min, population_distribution, delta_fitness,
@@ -93,21 +95,21 @@ class Population(object):
             raise ValueError('''Shapes must be compatible''')
         population.fitness_list = np.atleast_2d(np.array(fitness_list))
         population.mutation_list = np.atleast_1d(np.array(mutation_list))
+        population._trimUpdates()
         return population
 
     @classmethod
     def loadFromFile(cls, load_group):
         """Load a Population from the end of a run saved as an hdf5 file."""
         params_list = ['delta_fitness', 'mu_multiple', 'fraction_beneficial',
-                     'fraction_accurate', 'fraction_mu2mu']
+                       'fraction_accurate', 'fraction_mu2mu']
         mu_params = [load_group.attrs[attr] for attr in params_list]
         K = load_group.attrs['pop_cap']
-        fitness_list = load_group['fitness_history'][:,:,-1]
-        mutation_list = load_group['mutation_history'][:,:,-1][0]
-        population_distribution = load_group['pop_history'][:,:,-1]
+        fitness_list = load_group['fitness_history'][:, :, -1]
+        mutation_list = load_group['mutation_history'][:, :, -1][0]
+        population_distribution = load_group['pop_history'][:, :, -1]
         population = cls.arrayInit(fitness_list, mutation_list,
-                                          population_distribution, *mu_params,
-                                          K)
+                                   population_distribution, *mu_params, K)
         return population
 
     def __call__(self, fitness, mutation_rate):
@@ -119,12 +121,12 @@ class Population(object):
         else:
             return self.population_distribution[l, k]
 
-    def __eq__(self,other):
-        if isinstance(other,Population):
+    def __eq__(self, other):
+        if isinstance(other, Population):
             is_equal = True
             for attribute in self.__dict__:
-                is_equal = (np.all(np.equal(getattr(self,attribute),
-                            getattr(other,attribute)))) and is_equal
+                is_equal = (np.all(np.equal(getattr(self, attribute),
+                            getattr(other, attribute)))) and is_equal
             return is_equal
         else:
             return NotImplemented
@@ -147,7 +149,7 @@ class Population(object):
 
     def update(self):
         """Evolve population one generation forward.
-        
+
         This is the core function of the model. It takes one time step forward
         in the population's evolution. Mathematically, this is a wright-fisher
         birth and death scheme for a replicator-mutator type model.
@@ -181,16 +183,16 @@ class Population(object):
         self._updatePopulationMutation()
         self._updatePopulationRegulation()
         greater_part = self.population_distribution * \
-                        (self.population_distribution > 10**9)
+            (self.population_distribution > 10**9)
         lesser_part = self.population_distribution * \
-                        (self.population_distribution <= 10**9)
+            (self.population_distribution <= 10**9)
         self.population_distribution = \
             np.random.poisson(lesser_part).astype('int64') + \
             greater_part.astype('int64')
 
     def _updatePopulationFitness(self):
         """Exponential growth/decay of population_distribution.
-        
+
         The exponential growth/decay in the population takes the mean fitness
         as a penalty to the growth rate to fix the population size.
         """
@@ -256,7 +258,7 @@ class Population(object):
 
     def _updatePopulationRegulation(self):
         """Normalize sum of population_distribution to pop_cap.
-        
+
         This term controls population size by multiplying the current
         population in each bin by the carrying capacity divided by the current
         total population.
@@ -267,7 +269,7 @@ class Population(object):
 
     def _trimUpdates(self):
         """Remove rows and columns of 0's at edges of population_distribution.
-        
+
         This prevents the population_distribution matrix from growing forever.
         """
         while np.sum(self.population_distribution[0, :]) == 0:
@@ -321,7 +323,7 @@ class Population(object):
 
     def mostCommontype(self):
         """Return the mode of the population distribution.
-        
+
         Only return one mode- the one with highest fitness and lowest mutation
         rate.
         """
@@ -486,7 +488,7 @@ class PopulationStore(object):
 
     def cleanup(self):
         """Flush hdf5 file buffer to disk, restart blobs, and free memory.
-        
+
         This cleanup prevents slowdown from Python and hdf5 using up too much
         memory without freeing it.
         """
@@ -496,5 +498,5 @@ class PopulationStore(object):
         gc.collect()
 
 
-def readHDF5PopulationHistory(read_group, time, fitness, mutation_rate):
+def readHDF5PopulationHistory(read_group, time):
     pass
