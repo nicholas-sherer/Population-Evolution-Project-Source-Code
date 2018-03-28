@@ -37,10 +37,10 @@ def dummytoReal(dummy):
             hdf5file.create_group(dummy.groupname)
         hdf5group = hdf5file[dummy.groupname]
         real = popev.PopulationStore(dummy.population, hdf5file, hdf5group,
-                                      dummy.time, dummy.pmw)
+                                     dummy.time, dummy.pmw)
     else:
         real = popev.PopulationStore(dummy.population, hdf5file, hdf5file,
-                                      dummy.time, dummy.pmw)
+                                     dummy.time, dummy.pmw)
     return real
 
 

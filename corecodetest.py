@@ -16,7 +16,7 @@ from datetime import datetime
 init_fit_list = np.array([0])
 init_mu_list = np.array([.01])
 K = 10**5
-init_pop_dist = np.array([K],dtype='int64')
+init_pop_dist = np.array([K], dtype='int64')
 mu_params = [.04, 3, 0, 0, .1]
 
 filename = 'testing_code' + repr(datetime.utcnow()) + '.hdf5'

@@ -53,7 +53,7 @@ Nlk = Nlk / np.sum(Nlk)
 
 dif = Nlk - trunc_pop_dist
 
-np.set_printoptions(precision = 2)
+np.set_printoptions(precision=2)
 
 total_error = np.sum(np.abs(dif))/2
 print('The predicted distribution of N(f,mu) is:')
