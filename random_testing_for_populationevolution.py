@@ -25,15 +25,14 @@ def randomPopulationParameters(N_high, pop_shape):
 
 
 def testSaveandLoad(test_pop):
-    temp_save_file = h5py.File('save_and_load_test_file.hdf5', 'w')
-    test_pop_store = popev.PopulationStore(test_pop, temp_save_file)
-    test_pop_store.fullandsummarySimStorage(0, 2)
-    temp_save_file.close()
-    temp_save_file = h5py.File('save_and_load_test_file.hdf5', 'r')
-    test_pop_load = \
-        popev.PopulationStore.loadStartFromFile(temp_save_file,
-                                                temp_save_file['times 0 to 2'],
-                                                temp_save_file)
-    temp_save_file.close()
-    print(test_pop_load.population == test_pop)
-    return test_pop, test_pop_load.population
+    with h5py.File('save_and_load_test_file.hdf5', 'w') as temp_save_file:
+        test_pop_store = popev.PopulationStore(test_pop, temp_save_file,
+                                               percent_memory_write=.5)
+        test_pop_store.fullandsummarySimStorage(0, 100000)
+    with h5py.File('save_and_load_test_file.hdf5', 'r') as temp_save_file:
+        test_pop_load = \
+            popev.PopulationStore.loadStartFromFile(temp_save_file,
+                                                    temp_save_file['times 0 to 100000'],
+                                                    temp_save_file)
+        print(test_pop_load.population == test_pop)
+        return test_pop, test_pop_load.population
