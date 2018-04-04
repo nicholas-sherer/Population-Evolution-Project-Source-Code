@@ -19,6 +19,7 @@ import h5py
 import numpy as np
 import psutil
 import raggedtorectangle as r2r
+import functools
 
 
 class Population(object):
@@ -541,5 +542,134 @@ class PopulationStore(object):
         gc.collect()
 
 
-def readHDF5PopulationHistory(read_group, time):
-    pass
+def h5key_to_time_range(key):
+    '''Return the time range that an hdf5 group made by population evolution
+    stores.'''
+    key_token_list = key.split(' ')
+    start_time = int(key_token_list[1])
+    end_time = int(key_token_list[3])
+    return start_time, end_time
+
+
+def time_range_to_h5key(time_range):
+    '''Return the hdf5 group corresponding to time_range.'''
+    return 'times {0} to {1}'.format(time_range[0], time_range[1])
+
+
+def time_range_to_h5key_summary(time_range):
+    '''Return the hdf5 group containing summary statistics corresponding to
+    time_range.'''
+    return time_range_to_h5key(time_range) + ' summary stats'
+
+
+def time_array(hdf5group):
+    '''Return an array of the start and stop times for a hdf5 group storing
+    data from a run of populationevolution.'''
+    time_range_list = [h5key_to_time_range(key) for key in hdf5group.keys()]
+    time_array = np.unique(np.array(time_range_list)).reshape((-1, 2))
+    return time_array
+
+
+def time_segment(time, time_array):
+    '''Return index of the time_range containing a particular time in an hdf5
+    file.'''
+    try:
+        return np.where((time >= time_array[:, 0]) &
+                        (time <= time_array[:, 1]))[0][0]
+    except IndexError:
+        return []
+
+
+class PopulationReader(object):
+    '''Class for retrieving data from population evolution simulations stored
+    in hdf5 files.'''
+
+    def __init__(self, file_name, group_name=None):
+        self.file = h5py.File(file_name, 'r')
+        if group_name is None:
+            self.group = self.file
+        else:
+            self.group = self.file[group_name]
+        self.time_array = time_array(self.group)
+
+        self.mean_fitness = summaryReader(self.group, 'mean_fitness',
+                                          self.time_array)
+        self.max_fitness = summaryReader(self.group, 'max_fitness',
+                                         self.time_array)
+        self.min_fitness = summaryReader(self.group, 'min_fitness',
+                                         self.time_array)
+        self.mode_fitness = summaryReader(self.group, 'mode_fitness',
+                                          self.time_array)
+        self.mean_mutation = summaryReader(self.group, 'mean_mutation',
+                                           self.time_array)
+        self.max_mutation = summaryReader(self.group, 'max_mutation',
+                                          self.time_array)
+        self.min_mutation = summaryReader(self.group, 'min_mutation',
+                                          self.time_array)
+        self.mode_mutation = summaryReader(self.group, 'mode_mutation',
+                                           self.time_array)
+
+    def __call__(self, time):
+        '''Return the Population object from a particular time in the stored
+        simulation.'''
+        ts = time_segment(time, self.time_array)
+        time_range = self.time_array[ts]
+        offset = time - time_range[0]
+        h5key = time_range_to_h5key(time_range)
+        subgroup = self.group[h5key]
+        fitness_history = self._load_hdf5array(subgroup, 'fitness_history')
+        fitness_list = fitness_history[:, :, offset]
+        mutation_history = self._load_hdf5array(subgroup, 'mutation_history')
+        mutation_list = mutation_history[:, :, offset]
+        pop_history = self._load_hdf5array(subgroup, 'pop_history')
+        population_distribution = pop_history[:, :, offset]
+        attributes = subgroup.attrs
+        delta_fitness = attributes['delta_fitness']
+        mu_multiple = attributes['mu_multiple']
+        fraction_beneficial = attributes['fraction_beneficial']
+        fraction_accurate = attributes['fraction_accurate']
+        fraction_mu2mu = attributes['fraction_mu2mu']
+        K = attributes['pop_cap']
+        return Population.arrayInit(fitness_list, mutation_list,
+                                    population_distribution, delta_fitness,
+                                    mu_multiple, fraction_beneficial,
+                                    fraction_accurate, fraction_mu2mu, K)
+
+    # the cache function stashes hdf5 arrays in numpy arrays in memory to avoid
+    # having to keep going to disk when we iterate over the __call__ function
+    # with times near each other.
+    @functools.lru_cache(maxsize=3)
+    def _load_hdf5array(self, group, key):
+        return group[key][:, :, :]
+
+
+class summaryReader(object):
+    '''Helper class for indexing into summary statistics of an hdf5 group
+    storing a population evolution simulation.'''
+
+    def __init__(self, group, key, time_array):
+        self.group = group
+        self.key = key
+        self.time_array = time_array
+
+    def __getitem__(self, key):
+        '''Return summary statistics for a slice in a list.'''
+        if isinstance(key, int):
+            ts = time_segment(key, self.time_array)
+            time_range = self.time_array[ts]
+            offset = key - time_range[0]
+            h5key = time_range_to_h5key_summary(time_range)
+            subgroup = self.group[h5key]
+            history = self._load_hdf5summaryarray(subgroup, self.key)
+            return history[offset]
+        elif isinstance(key, slice):
+            return [self[i] for i in range(*key.indices(key.stop))]
+        else:
+            raise TypeError('You must use an integer or a slice to index')
+
+    # the cache function stashes hdf5 arrays in numpy arrays in memory to avoid
+    # having to keep going to disk when we iterate over the __call__ function
+    # with times near each other.
+    @functools.lru_cache(maxsize=1)
+    def _load_hdf5summaryarray(self, group, key):
+        return group[key][:]
