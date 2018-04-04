@@ -78,23 +78,39 @@ class Population(object):
                                           mu_min*mu_multiple**(pop_shape[1]-1),
                                           pop_shape[1])
 
-        self._trimUpdates()
-
     @classmethod
     def arrayInit(cls, fitness_list, mutation_list,
                   population_distribution, delta_fitness,
                   mu_multiple, fraction_beneficial,
                   fraction_accurate, fraction_mu2mu, K):
-        f_max = fitness_list[0]
-        mu_min = mutation_list[0]
+
+        if fitness_list.ndim == 1:
+            f_max = fitness_list[0]
+        elif fitness_list.ndim == 2:
+            f_max = fitness_list[0, 0]
+        else:
+            raise ValueError('fitness_list should have 2 or fewer dimensions')
+
+        if mutation_list.ndim == 1:
+            mu_min = mutation_list[0]
+        elif mutation_list.ndim == 2:
+            mu_min = mutation_list[0, 0]
+        else:
+            raise ValueError('mutation_list should have 2 or fewer dimensions')
+
         population = cls(f_max, mu_min, population_distribution, delta_fitness,
                          mu_multiple, fraction_beneficial, fraction_accurate,
                          fraction_mu2mu, K)
         if population.population_distribution.shape != \
             (population.fitness_list.size, population.mutation_list.size):
-            raise ValueError('''Shapes must be compatible''')
+            raise ValueError('Shapes must be compatible')
         population.fitness_list = np.atleast_2d(np.array(fitness_list))
-        population.mutation_list = np.atleast_1d(np.array(mutation_list))
+        if mutation_list.ndim == 1:
+            population.mutation_list = mutation_list
+        elif mutation_list.ndim == 2:
+            population.mutation_list = mutation_list[0]
+        else:
+            raise ValueError('Mutation list must be a 1-d or 2-d numpy array')
         population._trimUpdates()
         return population
 
@@ -114,12 +130,16 @@ class Population(object):
 
     def __call__(self, fitness, mutation_rate):
         """Return number of individuals with this fitness and mutation rate."""
-        l = np.where(self.fitness_list == fitness)[0][0]
-        k = np.where(self.mutation_list == mutation_rate)[0][0]
-        if self.population_distribution[l, k].size == 0:
+        l = np.where(self.fitness_list == fitness)[0]
+        if l.size == 0:
             return 0
-        else:
-            return self.population_distribution[l, k]
+        try:
+            k = np.where(self.mutation_list == mutation_rate)[0][0]
+            if k.size == 0:
+                return 0
+        except IndexError:
+            return 0
+        return self.population_distribution[l, k]
 
     def __eq__(self, other):
         if isinstance(other, Population):
@@ -406,9 +426,30 @@ class PopulationStore(object):
         for item in self.blobdata['full_distribution'].values():
             item[1].append(np.atleast_2d(getattr(self.population, item[0])))
 
+    def isSummaryBlobEmpty(self):
+        isempty = True
+        for value in self.blobdata['summary_stats'].values():
+            if value[1] == []:
+                isempty = isempty and True
+            else:
+                isempty = isempty and False
+        return isempty
+
+    def isFullBlobEmpty(self):
+        isempty = True
+        for value in self.blobdata['full_distribution'].values():
+            if value[1] == []:
+                isempty = isempty and True
+            else:
+                isempty = isempty and False
+        return isempty
+
     def simStorage(self, t_start, t_finish, temp_store_func, perm_store_func):
-        t_lastwrite = t_start
-        for i in range(t_start, t_finish):
+        if self.isFullBlobEmpty() and self.isSummaryBlobEmpty():
+            t_lastwrite = t_start + 1
+        else:
+            t_lastwrite = t_start
+        for i in range(t_start+1, t_finish):
             self.population.update()
             for func in temp_store_func:
                 func()
@@ -420,12 +461,14 @@ class PopulationStore(object):
                 t_lastwrite = i + 1
         if t_lastwrite < t_finish:
             for func in perm_store_func:
-                func(t_lastwrite, t_finish)
+                func(t_lastwrite, t_finish-1)
             self.cleanup()
-            t_lastwrite = t_finish
 
     def simStorageC(self, t_start, stop_con, temp_store_func, perm_store_func):
-        t_lastwrite = t_start
+        if self.isFullBlobEmpty() and self.isSummaryBlobEmpty():
+            t_lastwrite = t_start + 1
+        else:
+            t_lastwrite = t_start
         i = t_start
         while stop_con() is False:
             i += 1
