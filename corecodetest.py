@@ -9,7 +9,7 @@ import numpy as np
 
 import h5py
 
-import populationevolution_v3 as popev
+import populationevolution_v4 as popev
 
 from datetime import datetime
 
@@ -25,4 +25,4 @@ testfile = h5py.File(filename)
 testpop = popev.Population(init_fit_list, init_mu_list,
                            init_pop_dist, mu_params, K)
 testpopstore = popev.PopulationStore(testpop, testfile, testfile, 0, 50)
-testpopstore.fullandsummarySimStorage(0, 1)
+testpopstore.fullandsummarySimStorage(0, 100000)
