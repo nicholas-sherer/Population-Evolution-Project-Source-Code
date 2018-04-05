@@ -589,6 +589,7 @@ class PopulationReader(object):
         else:
             self.group = self.file[group_name]
         self.time_array = time_array(self.group)
+        self.length = self.time_array[-1, 1] - self.time_array[0, 0] + 1
 
         self.mean_fitness = summaryReader(self.group, 'mean_fitness',
                                           self.time_array)
@@ -610,6 +611,9 @@ class PopulationReader(object):
         self.mode_mutation_rate = summaryReader(self.group,
                                                 'mode_mutation_rate',
                                                 self.time_array)
+
+    def __len__(self):
+        return self.length
 
     def __call__(self, time):
         '''Return the Population object from a particular time in the stored
@@ -653,6 +657,10 @@ class summaryReader(object):
         self.group = group
         self.key = key
         self.time_array = time_array
+        self.length = self.time_array[-1, 1] - self.time_array[0, 0] + 1
+
+    def __len__(self):
+        return self.length
 
     def __getitem__(self, key):
         '''Return summary statistics for a slice in a list.'''
