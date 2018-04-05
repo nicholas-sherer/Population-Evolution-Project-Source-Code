@@ -316,27 +316,25 @@ class Population(object):
                                   self.fitness_list)) \
             / np.sum(self.population_distribution)
 
-    def meanMutationrate(self):
+    def mean_mutation_rate(self):
         """Return the mean mutation rate of the population."""
-        mean_mutationrate = \
-            np.sum(
-                np.multiply(self.population_distribution, self.mutation_list))\
+        return np.sum(np.multiply(self.population_distribution,
+                                  self.mutation_list))\
             / np.sum(self.population_distribution)
-        return mean_mutationrate
 
-    def maxFitness(self):
+    def max_fitness(self):
         """Return the highest fitness in the population."""
         return self.fitness_list[0]
 
-    def minFitness(self):
+    def min_fitness(self):
         """Return the lowest fitness in the population."""
         return self.fitness_list[-1]
 
-    def maxMutationrate(self):
+    def max_mutation_rate(self):
         """Return the highest mutation rate in the population."""
         return self.mutation_list[-1]
 
-    def minMutationrate(self):
+    def min_mutation_rate(self):
         """Return the lowest mutation rate in the population."""
         return self.mutation_list[0]
 
@@ -354,10 +352,10 @@ class Population(object):
         mode_mutationrate = self.mutation_list[j[0]]
         return (mode_fitness, mode_mutationrate)
 
-    def modeFitness(self):
+    def mode_fitness(self):
         return self.mostCommontype()[0]
 
-    def modeMutationrate(self):
+    def mode_mutation_rate(self):
         return self.mostCommontype()[1]
 
 
@@ -402,13 +400,15 @@ class PopulationStore(object):
         self.blobdata['summary_stats'] = {}
         summary_stat = self.blobdata['summary_stats']
         summary_stat['mean_fitness'] = (self.population.mean_fitness, [])
-        summary_stat['mean_mutation'] = (self.population.meanMutationrate, [])
-        summary_stat['max_fitness'] = (self.population.maxFitness, [])
-        summary_stat['min_fitness'] = (self.population.minFitness, [])
-        summary_stat['max_mutation'] = (self.population.maxMutationrate, [])
-        summary_stat['min_mutation'] = (self.population.minMutationrate, [])
-        summary_stat['mode_fitness'] = (self.population.modeFitness, [])
-        summary_stat['mode_mutation'] = (self.population.modeMutationrate, [])
+        summary_stat['mean_mutation'] = (self.population.mean_mutation_rate,
+                                         [])
+        summary_stat['max_fitness'] = (self.population.max_fitness, [])
+        summary_stat['min_fitness'] = (self.population.min_fitness, [])
+        summary_stat['max_mutation'] = (self.population.max_mutation_rate, [])
+        summary_stat['min_mutation'] = (self.population.min_mutation_rate, [])
+        summary_stat['mode_fitness'] = (self.population.mode_fitness, [])
+        summary_stat['mode_mutation'] = (self.population.mode_mutation_rate,
+                                         [])
 
     def updateSummaryBlob(self):
         for item in self.blobdata['summary_stats'].values():
@@ -598,14 +598,18 @@ class PopulationReader(object):
                                          self.time_array)
         self.mode_fitness = summaryReader(self.group, 'mode_fitness',
                                           self.time_array)
-        self.mean_mutation = summaryReader(self.group, 'mean_mutation',
-                                           self.time_array)
-        self.max_mutation = summaryReader(self.group, 'max_mutation',
-                                          self.time_array)
-        self.min_mutation = summaryReader(self.group, 'min_mutation',
-                                          self.time_array)
-        self.mode_mutation = summaryReader(self.group, 'mode_mutation',
-                                           self.time_array)
+        self.mean_mutation_rate = summaryReader(self.group,
+                                                'mean_mutation_rate',
+                                                self.time_array)
+        self.max_mutation_rate = summaryReader(self.group,
+                                               'max_mutation_rate',
+                                               self.time_array)
+        self.min_mutation_rate = summaryReader(self.group,
+                                               'min_mutation_rate',
+                                               self.time_array)
+        self.mode_mutation_rate = summaryReader(self.group,
+                                                'mode_mutation_rate',
+                                                self.time_array)
 
     def __call__(self, time):
         '''Return the Population object from a particular time in the stored
@@ -654,6 +658,8 @@ class summaryReader(object):
         '''Return summary statistics for a slice in a list.'''
         if isinstance(key, int):
             ts = time_segment(key, self.time_array)
+            if ts == []:
+                raise KeyError('That time does not exist in the data')
             time_range = self.time_array[ts]
             offset = key - time_range[0]
             h5key = time_range_to_h5key_summary(time_range)
@@ -661,7 +667,11 @@ class summaryReader(object):
             history = self._load_hdf5summaryarray(subgroup, self.key)
             return history[offset]
         elif isinstance(key, slice):
-            return [self[i] for i in range(*key.indices(key.stop))]
+            if key.stop is None:
+                stop = self.time_array[-1, 1]
+            else:
+                stop = key.stop
+            return [self[i] for i in range(*key.indices(stop))]
         else:
             raise TypeError('You must use an integer or a slice to index')
 
