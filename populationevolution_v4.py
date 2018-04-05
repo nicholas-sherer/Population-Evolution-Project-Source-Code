@@ -217,7 +217,7 @@ class Population(object):
         The exponential growth/decay in the population takes the mean fitness
         as a penalty to the growth rate to fix the population size.
         """
-        mean_fitness = self.meanFitness()
+        mean_fitness = self.mean_fitness()
         delta_fitness_list = self.fitness_list - mean_fitness
         growth_vector = np.exp(delta_fitness_list)
         self.population_distribution = \
@@ -310,13 +310,11 @@ class Population(object):
                 np.delete(self.population_distribution, -1, 1)
             self.mutation_list = np.delete(self.mutation_list, -1, 0)
 
-    def meanFitness(self):
+    def mean_fitness(self):
         """Return the mean fitness of the population."""
-        mean_fitness = \
-            np.sum(
-                np.multiply(self.population_distribution, self.fitness_list)) \
+        return np.sum(np.multiply(self.population_distribution,
+                                  self.fitness_list)) \
             / np.sum(self.population_distribution)
-        return mean_fitness
 
     def meanMutationrate(self):
         """Return the mean mutation rate of the population."""
@@ -403,7 +401,7 @@ class PopulationStore(object):
     def initiateSummaryBlob(self):
         self.blobdata['summary_stats'] = {}
         summary_stat = self.blobdata['summary_stats']
-        summary_stat['mean_fitness'] = (self.population.meanFitness, [])
+        summary_stat['mean_fitness'] = (self.population.mean_fitness, [])
         summary_stat['mean_mutation'] = (self.population.meanMutationrate, [])
         summary_stat['max_fitness'] = (self.population.maxFitness, [])
         summary_stat['min_fitness'] = (self.population.minFitness, [])
