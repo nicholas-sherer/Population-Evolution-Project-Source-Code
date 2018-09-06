@@ -154,7 +154,16 @@ class fixedStencilSum(object):
         # check that inputs are compatible
         check_axes_access(axes, array_ndim)
         convert_axes_to_positive(axes, array_ndim)
-        check_stencil_shape(array_ndim, axes, summed_axes_shape, stencil)
+        try:
+            check_stencil_shape(array_ndim, axes, summed_axes_shape, stencil)
+        except ValueError as e:
+            # For the trivial case where we collapse the array to one number,
+            # just monkeypatch the only method of the class to the simple
+            # implementation. Parameters become irrelevant.
+            if array_ndim == len(axes_summed_over):
+                self.stenciled_sum = np.sum
+            else:
+                raise e
 
         self.array_ndim = array_ndim
         self.axes = axes
