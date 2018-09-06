@@ -8,21 +8,6 @@ This is a temporary script file.
 import numpy as np
 
 
-def multibase_increment(tup, tuple_bounds):
-    new_tup = ()
-    increment = 1
-    for i in range(-1, -len(tup)-1, -1):
-        num = tup[i]
-        bound = tuple_bounds[i]
-        if num + increment < bound:
-            new_tup = ((num + increment),) + new_tup
-            if increment == 1:
-                increment = increment - 1
-        else:
-            new_tup = (0,) + new_tup
-    return new_tup
-
-
 # saves time because it avoid allocations
 def multibase_increment_fast(lis, list_bounds):
     i = -1
@@ -50,6 +35,18 @@ def int_to_indices(integer, dimensions):
     return indices
 
 
+def subarray_multislice(array_ndim, axes, indices):
+    indices = np.array(indices)
+    colon = slice(None, None, None)
+    multislice = ()
+    for i in range(array_ndim):
+        if i in axes:
+            multislice = multislice + (indices[np.where(axes == i)[0][0]],)
+        else:
+            multislice = multislice + (colon,)
+    return multislice
+
+
 def subarray_view(array, axes, indices, checks=True):
     '''
     Return view of subarray of input array with given axes fixed at
@@ -59,25 +56,12 @@ def subarray_view(array, axes, indices, checks=True):
         # of a variety of input types
         axes = np.atleast_1d(np.array(axes)).flatten()
         indices = np.atleast_1d(np.array(indices)).flatten()
-        # Check against accessing nonexistent axes
-        if np.max(axes) >= array.ndim or np.min(axes) < -array.ndim:
-            raise IndexError('too many indices for array')
-        # negative axes handled like negative indices in numpy arrays
-        for index, element in enumerate(axes):
-            if element < 0:
-                axes[index] = element + array.ndim
+        check_axes_access(axes, array.ndim)
+        convert_axes_to_positive(axes, array.ndim)
         if axes.shape != indices.shape:
             raise ValueError('''axes and indices must have matching shapes or
                              both be integers''')
-
-    colon = slice(None, None, None)
-    multislice = ()
-    for i in range(array.ndim):
-        if i in axes:
-            multislice = multislice + (indices[np.where(axes == i)[0][0]],)
-        else:
-            multislice = multislice + (colon,)
-    return array[multislice]
+    return array[subarray_multislice(array.ndim, axes, indices)]
 
 
 def subrange_view(array, starts, ends, steps=None, checks=True):
@@ -103,56 +87,6 @@ def subrange_view(array, starts, ends, steps=None, checks=True):
     return array[multislice]
 
 
-def stenciled_sum(big_array, axes, stencil, checks=True):
-    if checks:
-        axes = np.atleast_1d(np.array(axes)).flatten()
-        # Check against accessing nonexistent axes
-        if np.max(axes) >= big_array.ndim or np.min(axes) < -big_array.ndim:
-            raise IndexError('too many indices for array')
-        # negative axes handled like negative indices in numpy arrays
-        for index, element in enumerate(axes):
-            if element < 0:
-                axes[index] = element + big_array.ndim
-        # Check that stencil shape is correct
-        correct_stencil_shape = np.hstack([np.array(big_array.shape)[axes],
-                                           np.array(big_array.ndim -
-                                                    len(axes))])
-        # if we're summing across every axis, then just call np.sum
-        # (this avoids complicating rest of code for simple special case)
-        if correct_stencil_shape[-1] == 0:
-            return np.sum(big_array)
-        if not np.all(np.array(stencil.shape) == correct_stencil_shape):
-            raise ValueError('''The shape of the stencil must match the big
-                             array and axes appropriately''')
-
-    # make array of the axes we're preserving
-    not_axes = [i for i in range(big_array.ndim) if i not in axes]
-    # tuple of all but last stencil axis
-    ablsa = tuple(range(stencil.ndim-1))
-    return_array_shape = np.array(big_array.shape)[not_axes] + \
-        np.amax(stencil, axis=ablsa) - np.amin(stencil, axis=ablsa)
-
-    # left zero the stencil
-    stencil = stencil - np.amin(stencil, axis=ablsa)
-
-    # perform the stenciled summation
-    return_array = np.zeros(return_array_shape, dtype=big_array.dtype)
-    iter_bounds = stencil.shape[:-1]
-    final_loop = np.product(np.array(iter_bounds))
-    index = np.zeros(len(iter_bounds), dtype='int_')
-    subarray_size = np.array(subarray_view(big_array, axes,
-                                           index, checks=checks).shape)
-    for i in range(final_loop):
-        starts = stencil[tuple(index)]
-        ends = stencil[tuple(index)] + subarray_size
-        chunk_to_increase = subrange_view(return_array, starts, ends,
-                                          checks=checks)
-        chunk_to_increase[:] += subarray_view(big_array, axes, index,
-                                              checks=checks)
-        multibase_increment_fast(index, iter_bounds)
-    return return_array
-
-
 def check_axes_access(axes, array_ndim):
     if np.max(axes) >= array_ndim or np.min(axes) < -array_ndim:
             raise IndexError('too many indices for array')
@@ -172,19 +106,47 @@ def check_stencil_shape(array_ndim, axes, summed_axes_shape, stencil):
                              array and axes appropriately''')
 
 
-def subarray_multislice(array_ndim, axes, indices):
-    indices = np.array(indices)
-    colon = slice(None, None, None)
-    multislice = ()
-    for i in range(array_ndim):
-        if i in axes:
-            multislice = multislice + (indices[np.where(axes == i)[0][0]],)
-        else:
-            multislice = multislice + (colon,)
-    return multislice
+def stenciled_sum(big_array, axes, stencil, checks=True):
+    if checks:
+        axes = np.atleast_1d(np.array(axes)).flatten()
+        check_axes_access(axes, big_array.ndim)
+        convert_axes_to_positive(axes, big_array.ndim)
+        # if we're summing across every axis, then just call np.sum
+        # (this avoids complicating rest of code for simple special case)
+        if big_array.ndim == len(axes):
+            return np.sum(big_array)
+        summed_axes_shape = np.array(big_array.shape)[axes]
+        check_stencil_shape(big_array.ndim, axes, summed_axes_shape, stencil)
+
+    # make array of the axes we're preserving
+    not_axes = [i for i in range(big_array.ndim) if i not in axes]
+    # tuple of all but last stencil axis
+    ablsa = tuple(range(stencil.ndim-1))
+    subarray_shape = np.array(big_array.shape)[not_axes]
+    return_array_shape = subarray_shape + \
+        np.amax(stencil, axis=ablsa) - np.amin(stencil, axis=ablsa)
+
+    # left zero the stencil
+    stencil = stencil - np.amin(stencil, axis=ablsa)
+
+    # perform the stenciled summation
+    return_array = np.zeros(return_array_shape, dtype=big_array.dtype)
+    iter_bounds = stencil.shape[:-1]
+    final_loop = np.product(np.array(iter_bounds))
+    index = np.zeros(len(iter_bounds), dtype='int_')
+
+    for i in range(final_loop):
+        starts = stencil[tuple(index)]
+        ends = stencil[tuple(index)] + subarray_shape
+        chunk_to_increase = subrange_view(return_array, starts, ends,
+                                          checks=checks)
+        chunk_to_increase[:] += subarray_view(big_array, axes, index,
+                                              checks=checks)
+        multibase_increment_fast(index, iter_bounds)
+    return return_array
 
 
-class fixed_stencil_sum(object):
+class fixedStencilSum(object):
 
     def __init__(self, array_ndim, axes_summed_over, summed_axes_shape,
                  stencil):
