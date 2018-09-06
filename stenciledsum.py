@@ -20,21 +20,6 @@ def multibase_increment_fast(lis, list_bounds):
             i = i - 1
 
 
-def int_to_indices(integer, dimensions):
-    dimensions = np.array(dimensions)
-    if integer > np.product(dimensions):
-        raise ValueError('''The number of entries in an array of these
-                         dimensions is less than integer''')
-    remaining = integer
-    indices = ()
-    for i in range(-1, -dimensions.size-1, -1):
-        base = dimensions[i]
-        digit = remaining % base
-        remaining = (remaining - digit) // base
-        indices = (digit,) + indices
-    return indices
-
-
 def subarray_multislice(array_ndim, axes, indices):
     indices = np.array(indices)
     colon = slice(None, None, None)
@@ -179,7 +164,7 @@ class fixedStencilSum(object):
         self.iter_bounds = stencil.shape[:-1]
         final_loop = np.product(np.array(self.iter_bounds))
 
-        self.stencil_loop_indices = [int_to_indices(i, self.iter_bounds)
+        self.stencil_loop_indices = [np.unravel_index(i, self.iter_bounds)
                                      for i in range(final_loop)]
         self.multislices = [subarray_multislice(self.array_ndim, self.axes,
                                                 indices) for indices in
