@@ -103,7 +103,7 @@ class Population(object):
                          mu_multiple, fraction_beneficial, fraction_accurate,
                          fraction_mu2mu, K)
         if population.population_distribution.shape != \
-            (population.fitness_list.size, population.mutation_list.size):
+                (population.fitness_list.size, population.mutation_list.size):
             raise ValueError('Shapes must be compatible')
         population.fitness_list = np.atleast_2d(np.array(fitness_list))
         if mutation_list.ndim == 1:
