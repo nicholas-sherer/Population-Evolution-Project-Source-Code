@@ -146,9 +146,7 @@ class fixedStencilSum(object):
         self.stencil = stencil
         self.input_expand = np.amax(stencil, axis=ablsa) - \
             np.amin(stencil, axis=ablsa)
-        indices_iterator = np.ndindex(stencil.shape[:-1])
-
-        self.stencil_loop_indices = [i for i in indices_iterator]
+        self.stencil_loop_indices = [i for i in np.ndindex(stencil.shape[:-1])]
         self.multislices = [subarray_multislice(self.array_ndim, self.axes,
                                                 indices) for indices in
                             self.stencil_loop_indices]
