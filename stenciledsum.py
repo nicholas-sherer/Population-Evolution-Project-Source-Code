@@ -8,18 +8,6 @@ This is a temporary script file.
 import numpy as np
 
 
-# saves time because it avoid allocations
-def multibase_increment_fast(lis, list_bounds):
-    i = -1
-    while i >= -len(lis):
-        if lis[i] + 1 < list_bounds[i]:
-            lis[i] = lis[i] + 1
-            break
-        else:
-            lis[i] = 0
-            i = i - 1
-
-
 def subarray_multislice(array_ndim, axes, indices):
     indices = np.array(indices)
     colon = slice(None, None, None)
@@ -116,18 +104,15 @@ def stenciled_sum(big_array, axes, stencil, checks=True):
 
     # perform the stenciled summation
     return_array = np.zeros(return_array_shape, dtype=big_array.dtype)
-    iter_bounds = stencil.shape[:-1]
-    final_loop = np.product(np.array(iter_bounds))
-    index = np.zeros(len(iter_bounds), dtype='int_')
+    index_iterator = np.ndindex(stencil.shape[:-1])
 
-    for i in range(final_loop):
-        starts = stencil[tuple(index)]
-        ends = stencil[tuple(index)] + subarray_shape
+    for indices in index_iterator:
+        starts = stencil[indices]
+        ends = stencil[indices] + subarray_shape
         chunk_to_increase = subrange_view(return_array, starts, ends,
                                           checks=checks)
-        chunk_to_increase[:] += subarray_view(big_array, axes, index,
+        chunk_to_increase[:] += subarray_view(big_array, axes, indices,
                                               checks=checks)
-        multibase_increment_fast(index, iter_bounds)
     return return_array
 
 
@@ -161,11 +146,9 @@ class fixedStencilSum(object):
         self.stencil = stencil
         self.input_expand = np.amax(stencil, axis=ablsa) - \
             np.amin(stencil, axis=ablsa)
-        self.iter_bounds = stencil.shape[:-1]
-        final_loop = np.product(np.array(self.iter_bounds))
+        indices_iterator = np.ndindex(stencil.shape[:-1])
 
-        self.stencil_loop_indices = [np.unravel_index(i, self.iter_bounds)
-                                     for i in range(final_loop)]
+        self.stencil_loop_indices = [i for i in indices_iterator]
         self.multislices = [subarray_multislice(self.array_ndim, self.axes,
                                                 indices) for indices in
                             self.stencil_loop_indices]
