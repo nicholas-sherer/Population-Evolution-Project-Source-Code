@@ -8,36 +8,44 @@ This is a temporary script file.
 import numpy as np
 
 
-def subarray_multislice(array_ndim, axes, indices):
+def subarray_multislice(array_ndim, fixed_axes, indices):
+    '''
+    Return tuple of slices that if indexed into an array with given dimensions
+    will return subarray with the axes in axes fixed at given indices
+    '''
     indices = np.array(indices)
     colon = slice(None, None, None)
     multislice = ()
     for i in range(array_ndim):
-        if i in axes:
-            multislice = multislice + (indices[np.where(axes == i)[0][0]],)
+        if i in fixed_axes:
+            multislice = multislice + \
+                (indices[np.where(fixed_axes == i)[0][0]],)
         else:
             multislice = multislice + (colon,)
     return multislice
 
 
-def subarray_view(array, axes, indices, checks=True):
+def subarray_view(array, fixed_axes, indices, checks=True):
     '''
-    Return view of subarray of input array with given axes fixed at
+    Return view of subarray of input array with fixed_axes at
     corresponding indices.'''
     if checks:
         # Coerce the inputs into flat numpy arrays to allow for easy handling
         # of a variety of input types
-        axes = np.atleast_1d(np.array(axes)).flatten()
+        fixed_axes = np.atleast_1d(np.array(fixed_axes)).flatten()
         indices = np.atleast_1d(np.array(indices)).flatten()
-        check_axes_access(axes, array.ndim)
-        convert_axes_to_positive(axes, array.ndim)
-        if axes.shape != indices.shape:
+        check_axes_access(fixed_axes, array.ndim)
+        convert_axes_to_positive(fixed_axes, array.ndim)
+        if fixed_axes.shape != indices.shape:
             raise ValueError('''axes and indices must have matching shapes or
                              both be integers''')
-    return array[subarray_multislice(array.ndim, axes, indices)]
+    return array[subarray_multislice(array.ndim, fixed_axes, indices)]
 
 
 def subrange_view(array, starts, ends, steps=None, checks=True):
+    '''
+    Return view of array with each axes indexed between starts and ends.
+    '''
     if checks:
         # Coerce the inputs into flat numpy arrays to allow for easy handling
         # of a variety of input types
@@ -65,6 +73,7 @@ def check_axes_access(axes, array_ndim):
             raise IndexError('too many indices for array')
 
 
+# regular numpy scheme for which positive index a negative index corresponds to
 def convert_axes_to_positive(axes, array_ndim):
     for index, element in enumerate(axes):
             if element < 0:
