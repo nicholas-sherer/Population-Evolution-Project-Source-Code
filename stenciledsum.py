@@ -79,41 +79,12 @@ def check_stencil_shape(array_ndim, axes, summed_axes_shape, stencil):
                              array and axes appropriately''')
 
 
-def stenciled_sum(big_array, axes, stencil, checks=True):
-    if checks:
-        axes = np.atleast_1d(np.array(axes)).flatten()
-        check_axes_access(axes, big_array.ndim)
-        convert_axes_to_positive(axes, big_array.ndim)
-        # if we're summing across every axis, then just call np.sum
-        # (this avoids complicating rest of code for simple special case)
-        if big_array.ndim == len(axes):
-            return np.sum(big_array)
-        summed_axes_shape = np.array(big_array.shape)[axes]
-        check_stencil_shape(big_array.ndim, axes, summed_axes_shape, stencil)
-
-    # make array of the axes we're preserving
-    not_axes = [i for i in range(big_array.ndim) if i not in axes]
-    # tuple of all but last stencil axis
-    ablsa = tuple(range(stencil.ndim-1))
-    subarray_shape = np.array(big_array.shape)[not_axes]
-    return_array_shape = subarray_shape + \
-        np.amax(stencil, axis=ablsa) - np.amin(stencil, axis=ablsa)
-
-    # left zero the stencil
-    stencil = stencil - np.amin(stencil, axis=ablsa)
-
-    # perform the stenciled summation
-    return_array = np.zeros(return_array_shape, dtype=big_array.dtype)
-    index_iterator = np.ndindex(stencil.shape[:-1])
-
-    for indices in index_iterator:
-        starts = stencil[indices]
-        ends = stencil[indices] + subarray_shape
-        chunk_to_increase = subrange_view(return_array, starts, ends,
-                                          checks=checks)
-        chunk_to_increase[:] += subarray_view(big_array, axes, indices,
-                                              checks=checks)
-    return return_array
+def stenciled_sum(array, summed_axes, stencil):
+    summed_axes = np.atleast_1d(np.array(summed_axes))
+    summed_axes_shape = np.array(array.shape)[summed_axes]
+    fixed_stencil_summer = fixedStencilSum(array.ndim, summed_axes,
+                                           summed_axes_shape, stencil)
+    return fixed_stencil_summer.stenciled_sum(array)
 
 
 class fixedStencilSum(object):
@@ -124,16 +95,10 @@ class fixedStencilSum(object):
         # check that inputs are compatible
         check_axes_access(axes, array_ndim)
         convert_axes_to_positive(axes, array_ndim)
-        try:
-            check_stencil_shape(array_ndim, axes, summed_axes_shape, stencil)
-        except ValueError as e:
-            # For the trivial case where we collapse the array to one number,
-            # just monkeypatch the only method of the class to the simple
-            # implementation. Parameters become irrelevant.
-            if array_ndim == len(axes_summed_over):
-                self.stenciled_sum = np.sum
-            else:
-                raise e
+        check_stencil_shape(array_ndim, axes, summed_axes_shape, stencil)
+        # handle a trivial case where we sum the entire array into one number
+        if array_ndim == len(axes):
+            self.stenciled_sum = np.sum
 
         self.array_ndim = array_ndim
         self.axes = axes
