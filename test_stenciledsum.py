@@ -26,8 +26,7 @@ def random_stencil(array, axes_to_sum, min_shift, max_shift):
     axes_shape = np.array(array.shape)[np.array(axes_to_sum)]
     stencil_shape = stsum.correct_stencil_shape(array.ndim, axes_to_sum,
                                                 axes_shape)
-    return np.random.randint(min_shift, max_shift, size=stencil_shape,
-                             dtype='int_')
+    return np.random.randint(min_shift, max_shift, size=stencil_shape)
 
 
 def random_array_and_axes_to_sum(ndim_max, shape_max):
