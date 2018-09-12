@@ -37,8 +37,8 @@ def subarray_view(array, fixed_axes, indices, checks=True):
         check_axes_access(fixed_axes, array.ndim)
         convert_axes_to_positive(fixed_axes, array.ndim)
         if fixed_axes.shape != indices.shape:
-            raise ValueError('''axes and indices must have matching shapes or
-                             both be integers''')
+            raise ValueError('axes and indices must have matching shapes or'
+                             ' both be integers')
     return array[subarray_multislice(array.ndim, fixed_axes, indices)]
 
 
@@ -55,8 +55,8 @@ def subrange_view(array, starts, ends, steps=None, checks=True):
             steps = np.atleast_1d(np.array(steps)).flatten()
         # Check number of array axes matches up with starts and ends
         if (array.ndim != starts.size) or (array.ndim != ends.size):
-            raise ValueError('''the size of starts and ends must equal the
-                             number of array dimensions''')
+            raise ValueError('the size of starts and ends must equal the '
+                             'number of array dimensions')
     multislice = ()
     # If steps is None, default to step size of 1
     if steps is None:
@@ -88,8 +88,8 @@ def correct_stencil_shape(array_ndim, axes, summed_axes_shape):
 def check_stencil_shape(array_ndim, axes, summed_axes_shape, stencil):
     if not np.all(np.array(stencil.shape) ==
                   correct_stencil_shape(array_ndim, axes, summed_axes_shape)):
-            raise ValueError('''The shape of the stencil must match the big
-                             array and axes appropriately''')
+            raise ValueError('The shape of the stencil must match the big'
+                             ' array and axes appropriately')
 
 
 def stenciled_sum(array, summed_axes, stencil):
