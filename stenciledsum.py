@@ -80,10 +80,14 @@ def convert_axes_to_positive(axes, array_ndim):
                 axes[index] = element + array_ndim
 
 
+def correct_stencil_shape(array_ndim, axes, summed_axes_shape):
+    return np.hstack([np.array(summed_axes_shape),
+                     np.array(array_ndim - len(axes))])
+
+
 def check_stencil_shape(array_ndim, axes, summed_axes_shape, stencil):
-    correct_stencil_shape = np.hstack([np.array(summed_axes_shape),
-                                       np.array(array_ndim - len(axes))])
-    if not np.all(np.array(stencil.shape) == correct_stencil_shape):
+    if not np.all(np.array(stencil.shape) ==
+                  correct_stencil_shape(array_ndim, axes, summed_axes_shape)):
             raise ValueError('''The shape of the stencil must match the big
                              array and axes appropriately''')
 
