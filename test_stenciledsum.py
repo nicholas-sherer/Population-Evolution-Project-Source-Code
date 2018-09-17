@@ -83,4 +83,38 @@ def random_complete_reduction(big_array, verbose=False):
 def test_complete_reduction(array):
     assert random_complete_reduction(array)[2][-1] == np.sum(array)
 
+
+def ex_stenciled_0axis_add(big_array):
+    '''equivalent to stenciled add across 0 axis of 5 x m x n array with
+    [[0, 0],
+     [-1,0],
+     [1,0],
+     [0,-1],
+     [0,1]] stencil'''
+    subarray_shape = np.array(big_array.shape)[[1, 2]]
+    return_array = np.zeros(subarray_shape + 2, dtype='int_')
+    return_array[1:-1, 1:-1] += big_array[0]
+    return_array[0:-2, 1:-1] += big_array[1]
+    return_array[2:, 1:-1] += big_array[2]
+    return_array[1:-1, 0:-2] += big_array[3]
+    return_array[1:-1, 2:] += big_array[4]
+    return return_array
+
+
+@pytest.mark.parametrize("big_array",
+                         [np.random.randint(10,
+                                            size=(5,
+                                                  np.random.randint(10),
+                                                  np.random.randint(10)))
+                          for i in range(100)])
+def test_equality_to_manual_implementation(big_array):
+    stencil = np.array([[0, 0],
+                        [-1, 0],
+                        [1, 0],
+                        [0, -1],
+                        [0, 1]], dtype='int_')
+    axis = 0
+    assert np.all(stsum.stenciled_sum(big_array, axis, stencil) ==
+                  ex_stenciled_0axis_add(big_array))
+
 pytest.main()
