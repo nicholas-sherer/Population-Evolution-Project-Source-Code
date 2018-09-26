@@ -12,7 +12,7 @@ def array_multinomial(N_array, Pis_array, checks=True):
     """
     Draw from multinomial distribution P(x1, x2,..., xi; N, p1, p2, ... pi)
     array wise where N's are from N_array and their respective pi's are from
-    the Pis array with matching trailing indices and the leading index is the
+    Pis_array with matching trailing indices and the leading index is the
     value of i.
 
     Return an array of xis in the same shape as the array Pis_array.
@@ -45,3 +45,17 @@ def array_multinomial(N_array, Pis_array, checks=True):
         prob_remain -= Pis_array[i, ...]
     Xis_array[-1, ...] = N_remain_array
     return Xis_array
+
+
+def approximate_binomial(N, P, size=None):
+    N_below_32bit = N * (N <= 2 * 10**9)
+    N_above_32bit = N - N_below_32bit
+    draw_below = np.random.binomial(N_below_32bit.astype('int32'), P)
+    N_broadcast, P_broadcast = np.broadcast_arrays(N_above_32bit, P)
+    NP = N_broadcast*P_broadcast
+    poisson_approx_segment = NP < 100
+    draw_poisson = np.random.poisson(NP*poisson_approx_segment)
+    N_normal_approx = N_broadcast * (1 - poisson_approx_segment)
+    normal_std = np.sqrt(N_normal_approx * P_broadcast * (1 - P_broadcast))
+    draw_normal = np.random.normal(N_normal_approx*P_broadcast, normal_std)
+    return (draw_below + draw_poisson + draw_normal).astype('int64')
