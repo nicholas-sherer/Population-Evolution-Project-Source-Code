@@ -47,7 +47,14 @@ def array_multinomial(N_array, Pis_array, checks=True):
     return Xis_array
 
 
-def approximate_binomial(N, P, size=None):
+def approximate_binomial(N, P):
+    """
+    Run binomial draws for very large N by using the poisson or normal
+    approximation depending which is appropriate.
+
+    Should be identical to calling np.random.binomial with size=None for
+    integers less than 32 bits.
+    """
     N_below_32bit = N * (N <= 2 * 10**9)
     N_above_32bit = N - N_below_32bit
     draw_below = np.random.binomial(N_below_32bit.astype('int32'), P)
@@ -63,17 +70,8 @@ def approximate_binomial(N, P, size=None):
 
 def array_multinomial_int64(N_array, Pis_array, checks=True):
     """
-    Draw from multinomial distribution P(x1, x2,..., xi; N, p1, p2, ... pi)
-    array wise where N's are from N_array and their respective pi's are from
-    Pis_array with matching trailing indices and the leading index is the
-    value of i.
-
-    Return an array of xis in the same shape as the array Pis_array.
-
-    The last subarray along the leading axis of Pis_array is ignored if checks
-    is False because it is assumed to be equal to 1 minus the rest of that axis
-    since probability is conserved. If checks is True then we check to make
-    sure all sums over pi's are equal to 1 as required.
+    Same as array_multinomial function except it can handle 64 bit integer
+    inputs in N_array.
     """
 
     if checks is True:
