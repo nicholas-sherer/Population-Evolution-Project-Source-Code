@@ -8,6 +8,18 @@ Created on Wed Sep 12 16:40:28 2018
 import numpy as np
 
 
+def check(N, Pis):
+    if not np.all(Pis >= 0):
+            raise ValueError('All probabilities must be 0 or positive.')
+    total_probability = np.sum(Pis, axis=0)
+    if not np.all(np.isclose(total_probability, 1., rtol=0, atol=1e-15)):
+        raise ValueError('The total probability parameters of a'
+                         ' multinomial distribution must sum to 1.')
+    if Pis.shape[1:] != N.shape:
+        raise AttributeError('Pis must be the shape of N plus'
+                             'one additional axis in the lead')
+
+
 def array_multinomial(N_array, Pis_array, checks=True):
     """
     Draw from multinomial distribution P(x1, x2,..., xi; N, p1, p2, ... pi)
@@ -25,16 +37,7 @@ def array_multinomial(N_array, Pis_array, checks=True):
 
     if checks is True:
         N_array = np.array(N_array)
-        if not np.all(Pis_array >= 0):
-            raise ValueError('All probabilities must be 0 or positive.')
-        total_probability = np.sum(Pis_array, axis=0)
-        if not np.all(np.isclose(total_probability, 1., rtol=0, atol=1e-15)):
-            raise ValueError('The total probability parameters of a'
-                             ' multinomial distribution must sum to 1.')
-
-        if Pis_array.shape[1:] != N_array.shape:
-            raise AttributeError('Pis_array must be the shape of N_array plus'
-                                 'one additional axis in the lead')
+        check(N_array, Pis_array)
 
     Xis_array = np.zeros_like(Pis_array, dtype='int32')
     N_remain_array = np.copy(N_array)
@@ -76,16 +79,8 @@ def array_multinomial_int64(N_array, Pis_array, checks=True):
     """
 
     if checks is True:
-        if not np.all(Pis_array >= 0):
-            raise ValueError('All probabilities must be 0 or positive.')
-        total_probability = np.sum(Pis_array, axis=0)
-        if not np.all(np.isclose(total_probability, 1., rtol=0, atol=1e-15)):
-            raise ValueError('The total probability parameters of a'
-                             ' multinomial distribution must sum to 1.')
-
-    if Pis_array.shape[1:] != N_array.shape:
-        raise AttributeError('Pis_array must be the shape of N_array plus one '
-                             'additional axis in the lead')
+        N_array = np.array(N_array)
+        check(N_array, Pis_array)
 
     Xis_array = np.zeros_like(Pis_array, dtype='int64')
     N_remain_array = np.copy(N_array)

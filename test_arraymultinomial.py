@@ -11,33 +11,21 @@ import scipy.stats as spstats
 import arraymultinomial as am
 
 
-def check(N, Pis):
-    if not np.all(Pis >= 0):
-        raise ValueError('All probabilities must be 0 or positive.')
-    total_probability = np.sum(Pis, axis=0)
-    if not np.all(np.isclose(total_probability, 1., rtol=0, atol=1e-15)):
-        raise ValueError('The total probability parameters of a'
-                         ' multinomial distribution must sum to 1.')
-    if Pis.shape[1:] != N.shape:
-        raise AttributeError('Pis_array must be the shape of N_array plus'
-                             'one additional axis in the lead')
-
-
 def multinomial_mean(N, Pis):
     N = np.array(N)
-    check(N, Pis)
+    am.check(N, Pis)
     return N*Pis
 
 
 def multinomial_var(N, Pis):
     N = np.array(N)
-    check(N, Pis)
+    am.check(N, Pis)
     return N*Pis*(1-Pis)
 
 
 def multinomial_fourth_moment_about_mean(N, Pis):
     N = np.array(N)
-    check(N, Pis)
+    am.check(N, Pis)
     return N*Pis*(1-Pis)*(3*Pis**2*(2-N)+3*Pis*(N-2)+1)
 
 
@@ -51,7 +39,7 @@ def stderr_of_var(var, mu4, sample_size):
 
 def multinomial_draw_repeated(N, Pis, sample_size):
     N = np.array(N)
-    check(N, Pis)
+    am.check(N, Pis)
     draws = [am.array_multinomial(N, Pis, checks=False)
              for i in range(sample_size)]
     return draws
@@ -84,4 +72,8 @@ def test_sample_means_and_var_distribution(N, Pis, sample_size):
     x_tstat = spstats.shapiro(x)[0]
     y_tstat = spstats.shapiro(y)[0]
     assert min(x_tstat, y_tstat) >= .98
-    
+
+
+def test_draws_sum_to_N(N, Pis):
+    draw = am.array_multinomial(N, Pis)
+    assert np.all(np.sum(draw, axis=0) == N)
