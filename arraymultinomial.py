@@ -37,7 +37,7 @@ def array_multinomial(N_array, Pis_array, checks=True):
 
     if checks is True:
         N_array = np.array(N_array)
-        Pis_array = np.arr(Pis_array)
+        Pis_array = np.array(Pis_array)
         check(N_array, Pis_array)
 
     Xis_array = np.zeros_like(Pis_array, dtype='int32')
