@@ -16,7 +16,7 @@ def check(N, Pis):
         raise ValueError('The total probability parameters of a'
                          ' multinomial distribution must sum to 1.')
     if Pis.shape[1:] != N.shape:
-        raise AttributeError('Pis must be the shape of N plus'
+        raise AttributeError('Pis must be the shape of N plus '
                              'one additional axis in the lead')
 
 
