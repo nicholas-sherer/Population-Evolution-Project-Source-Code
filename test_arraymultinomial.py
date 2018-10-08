@@ -67,13 +67,32 @@ def multinomial_mean_and_var_errors(N, Pis, sample_size):
     return mean_errors / est_mean_errors, var_errors / est_var_errors
 
 
+def random_N_and_Pis(Pis_0max):
+    ndim = np.random.randint(1, 3)
+    shape = tuple(np.random.randint(2, 10, size=ndim))
+    N = np.random.randint(100, 10000, size=shape, dtype='int32')
+    probabilities_length = np.random.randint(2, Pis_0max)
+    Pis_shape = (probabilities_length,) + shape
+    Pis = np.zeros(Pis_shape)
+    for i in range(probabilities_length-1):
+        Pis[i, ...] = np.random.uniform(0, 1-np.sum(Pis, axis=0))
+    Pis[probabilities_length-1, ...] = 1 - np.sum(Pis, axis=0)
+    return N, Pis
+
+
+@pytest.mark.parametrize("N,Pis,sample_size",
+                         [random_N_and_Pis(10) + (1000,) for i in range(100)])
 def test_sample_means_and_var_distribution(N, Pis, sample_size):
     x, y = multinomial_mean_and_var_errors(N, Pis, sample_size)
-    x_tstat = spstats.shapiro(x)[0]
-    y_tstat = spstats.shapiro(y)[0]
-    assert min(x_tstat, y_tstat) >= .98
+    x_pvalue = spstats.shapiro(x)[1]
+    y_pvalue = spstats.shapiro(y)[1]
+    assert min(x_pvalue, y_pvalue) >= .05
 
 
+@pytest.mark.parametrize("N,Pis", [random_N_and_Pis(10) for i in range(100)])
 def test_draws_sum_to_N(N, Pis):
     draw = am.array_multinomial(N, Pis)
     assert np.all(np.sum(draw, axis=0) == N)
+
+
+pytest.main()
