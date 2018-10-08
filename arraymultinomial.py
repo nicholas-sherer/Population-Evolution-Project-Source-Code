@@ -69,8 +69,9 @@ def approximate_binomial(N, P):
     draw_poisson = np.random.poisson(NP*poisson_approx_segment)
     N_normal_approx = N_broadcast * (1 - poisson_approx_segment)
     normal_std = np.sqrt(N_normal_approx * P_broadcast * (1 - P_broadcast))
-    draw_normal = np.random.normal(N_normal_approx*P_broadcast, normal_std)
-    return (draw_below + draw_poisson + draw_normal).astype('int64')
+    draw_normal = np.int64(np.random.normal(N_normal_approx*P_broadcast,
+                                            normal_std))
+    return draw_below + draw_poisson + draw_normal
 
 
 def array_multinomial_int64(N_array, Pis_array, checks=True):
