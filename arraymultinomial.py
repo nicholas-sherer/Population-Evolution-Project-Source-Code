@@ -95,3 +95,64 @@ def array_multinomial_int64(N_array, Pis_array, checks=True):
         prob_remain -= Pis_array[i, ...]
     Xis_array[-1, ...] = N_remain_array
     return Xis_array
+
+
+def multinomial_int64(N, Pis, checks=True):
+    '''Replacement for the numpy multinomial function that works even when
+    N exceeds 10^9.
+
+    Not for use if N is an array.'''
+    if checks:
+        N_array = np.array(N)
+        Pis = np.array(Pis)
+        check(N_array, Pis)
+
+    return_array = np.zeros_like(Pis, dtype='int64')
+    sort_order = np.argsort(Pis)
+    Pis = Pis[sort_order]
+    cumulative = np.cumsum(Pis)
+
+    li = 0
+    try:
+        ri = np.where(N*cumulative <= 10**9)[0][-1]
+        p_cut = cumulative[ri]
+        if ri > li:
+            chunk_small = True
+        else:
+            chunk_small = False
+    except IndexError:
+        chunk_small = False
+    N_remaining = N
+
+    while chunk_small:
+        mean = N_remaining*p_cut
+        std = np.sqrt(np.maximum(0, mean*(1-p_cut)))
+        N_left = np.int64(np.random.normal(mean, std))
+        N_remaining = N - N_left
+        return_array[li:ri+1] = np.random.multinomial(N_left,
+                                                      Pis[li:ri+1]/p_cut)
+        li = ri+1
+        cumulative = cumulative - p_cut
+        if li >= Pis.size:
+            return return_array[np.argsort(sort_order)]
+        try:
+            ri = np.where(N_remaining*cumulative <= 10**9)[0][-1]
+            p_cut = cumulative[ri]
+            if ri > li:
+                chunk_small = True
+            else:
+                chunk_small = False
+        except IndexError:
+            chunk_small = False
+
+    p_remaining = cumulative[-1]
+    for i in range(li, Pis.size-1):
+        mean = N_remaining*Pis[i]/p_remaining
+        std = np.sqrt(np.maximum(0, mean*(1-Pis[i]/p_remaining)))
+        left_N = np.int64(np.random.normal(mean, std))
+        N_remaining = N_remaining - left_N
+        p_remaining = p_remaining - Pis[i]
+        return_array[i] = left_N
+    return_array[-1] = N_remaining
+
+    return return_array[np.argsort(sort_order)]
