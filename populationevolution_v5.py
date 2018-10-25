@@ -75,6 +75,12 @@ class Population(object):
         self.pop_cap = K
         if self.pop_cap < 100:
             raise ValueError('pop_cap must be greater than or equal to 100')
+        if K <= 10**9:
+            self.wright_fisher = wf.wright_fisher_fitness_update
+            self.multinomial = arrm.array_multinomial
+        else:
+            self.wright_fisher = wf.wright_fisher_fitness_update_bigN
+            self.multinomial = arrm.array_multinomial_int64
 
         f_min = f_max - delta_fitness*(pop_shape[0]-1)
         self.fitness_list = np.transpose(np.atleast_2d(np.linspace(f_max,
@@ -143,14 +149,14 @@ class Population(object):
 
     def __call__(self, fitness, mutation_rate):
         """Return number of individuals with this fitness and mutation rate."""
-        l = np.where(self.fitness_list == fitness)[0]
+        l = np.where(np.isclose(self.fitness_list, fitness, 0,
+                                self.delta_fitness/3))[0]
         if l.size == 0:
             return 0
-        try:
-            k = np.where(self.mutation_list == mutation_rate)[0][0]
-            if k.size == 0:
-                return 0
-        except IndexError:
+        k = np.where(np.isclose(np.log(self.mutation_list),
+                                np.log(mutation_rate), 0,
+                                np.log(self.mu_multiple)/3))[0]
+        if k.size == 0:
             return 0
         return self.population_distribution[l, k]
 
@@ -194,8 +200,8 @@ class Population(object):
 
     def _updateFitnessList(self):
         """Add a new highest and new lowest fitness to fitness_list."""
-        num_fit = np.size(self.fitness_list)
-        temp_list = np.zeros((num_fit+2, 1))
+        num_fit = self.fitness_list.size
+        temp_list = np.empty((num_fit+2, 1))
         temp_list[0] = self.fitness_list[0] + self.delta_fitness
         temp_list[-1] = self.fitness_list[-1]-self.delta_fitness
         temp_list[1:num_fit+1] = self.fitness_list
@@ -203,25 +209,29 @@ class Population(object):
 
     def _updateMutationList(self):
         """Add a new highest and new lowest mutation rate to mutation_list."""
-        num_mut = np.size(self.mutation_list)
-        temp_list = np.zeros(num_mut+2)
+        num_mut = self.mutation_list.size
+        temp_list = np.empty(num_mut+2)
         temp_list[0] = self.mutation_list[0] / self.mu_multiple
         temp_list[-1] = np.minimum(self.mutation_list[-1] * self.mu_multiple,
-                                   1)
+                                   1.0)
         temp_list[1:num_mut+1] = self.mutation_list
         self.mutation_list = temp_list
 
     def _updatePopulationDistribution(self):
         """Evolve population_distribution one generation."""
-        next_g = wf.wright_fisher_fitness_update(self.population_distribution,
-                                                 self.fitness_list)
+        next_g = self.wright_fisher(self.population_distribution,
+                                    self.fitness_list)
         mus = np.broadcast_to(self.mutation_list,
-                              np.hstack((4,
-                                         self.population_distribution.shape)))
-        Pis = np.zeros(np.hstack((5, self.population_distribution.shape)))
+                              (4,) + self.population_distribution.shape)
+        Pis = np.empty((5,) + self.population_distribution.shape)
         Pis[0:4, ...] = mus*self.pmus
         Pis[4, ...] = 1 - np.sum(Pis, axis=0)
-        mut = arrm.array_multinomial(next_g, Pis)
+        # This next bit caps the mutation rate at 1 by not allowing mutations
+        # above mutation rate 1 to occur. Instead nothing happens.
+        if self.mutation_list[-1] == 1.0:
+            Pis[1, :, -1] = 0
+            Pis[4, :, -1] = self.fraction_mu2mu*(1-self.fraction_accurate)
+        mut = self.multinomial(next_g, Pis, checks=False)
         self.population_distribution = self.summer.stenciled_sum(mut)
 
     def _trimUpdates(self):
@@ -229,27 +239,24 @@ class Population(object):
 
         This prevents the population_distribution matrix from growing forever.
         """
-        while np.sum(self.population_distribution[0, :]) == 0:
-            self.population_distribution = \
-                np.delete(self.population_distribution, 0, 0)
-            self.fitness_list = np.delete(self.fitness_list, 0, 0)
-        while np.sum(self.population_distribution[-1, :]) == 0:
-            self.population_distribution = \
-                np.delete(self.population_distribution, -1, 0)
-            self.fitness_list = np.delete(self.fitness_list, -1, 0)
-        while np.sum(self.population_distribution[:, 0]) == 0:
-            self.population_distribution = \
-                np.delete(self.population_distribution, 0, 1)
-            self.mutation_list = np.delete(self.mutation_list, 0, 0)
-        while np.sum(self.population_distribution[:, -1]) == 0:
-            self.population_distribution = \
-                np.delete(self.population_distribution, -1, 1)
-            self.mutation_list = np.delete(self.mutation_list, -1, 0)
+        mutation_edges = np.where(np.sum(self.population_distribution,
+                                         axis=0) > 0)
+        m_low = mutation_edges[0][0]
+        m_high = mutation_edges[0][-1]
+        fitness_edges = np.where(np.sum(self.population_distribution,
+                                        axis=1) > 0)
+        f_low = fitness_edges[0][0]
+        f_high = fitness_edges[0][-1]
+        self.population_distribution = \
+            self.population_distribution[f_low:f_high+1, m_low:m_high+1]
+        self.mutation_list = self.mutation_list[m_low:m_high+1]
+        self.fitness_list = self.fitness_list[f_low:f_high+1]
 
-    def mean_exp_fitness(self):
+    def mean_fitness(self):
         """Return the mean fitness of the population."""
-        return wf.mean_exp_fitness(self.population_distribution,
-                                   self.fitness_list)
+        return np.sum(np.multiply(self.population_distribution,
+                                  self.fitness_list)) \
+            / np.sum(self.population_distribution)
 
     def mean_mutation_rate(self):
         """Return the mean mutation rate of the population."""
