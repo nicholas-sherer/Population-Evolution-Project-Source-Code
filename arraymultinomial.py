@@ -12,7 +12,7 @@ def check(N, Pis):
     if not np.all(Pis >= 0):
             raise ValueError('All probabilities must be 0 or positive.')
     total_probability = np.sum(Pis, axis=0)
-    if not np.all(np.isclose(total_probability, 1., rtol=0, atol=1e-15)):
+    if not np.all(np.isclose(total_probability, 1., rtol=0, atol=1e-13)):
         raise ValueError('The total probability parameters of a'
                          ' multinomial distribution must sum to 1.')
     if Pis.shape[1:] != N.shape:
@@ -40,7 +40,7 @@ def array_multinomial(N_array, Pis_array, checks=True):
         Pis_array = np.array(Pis_array)
         check(N_array, Pis_array)
 
-    Xis_array = np.zeros_like(Pis_array, dtype='int32')
+    Xis_array = np.empty_like(Pis_array, dtype='int32')
     N_remain_array = np.copy(N_array)
     prob_remain = np.ones_like(N_array, dtype='float64')
     for i in range(Pis_array.shape[0]-1):
@@ -85,7 +85,7 @@ def array_multinomial_int64(N_array, Pis_array, checks=True):
         Pis_array = np.array(Pis_array)
         check(N_array, Pis_array)
 
-    Xis_array = np.zeros_like(Pis_array, dtype='int64')
+    Xis_array = np.empty_like(Pis_array, dtype='int64')
     N_remain_array = np.copy(N_array)
     prob_remain = np.ones_like(N_array, dtype='float64')
     for i in range(Pis_array.shape[0]-1):
@@ -107,7 +107,12 @@ def multinomial_int64(N, Pis, checks=True):
         Pis = np.array(Pis)
         check(N_array, Pis)
 
-    return_array = np.zeros_like(Pis, dtype='int64')
+    # if N is less than the cutoff below which numpy.random.multinomial fails
+    # just call np.random.multinomial
+    if N <= 10**9:
+        return np.random.multinomial(N, Pis)
+
+    return_array = np.empty_like(Pis, dtype='int64')
     sort_order = np.argsort(Pis)
     Pis = Pis[sort_order]
     cumulative = np.cumsum(Pis)
@@ -128,7 +133,7 @@ def multinomial_int64(N, Pis, checks=True):
         mean = N_remaining*p_cut
         std = np.sqrt(np.maximum(0, mean*(1-p_cut)))
         N_left = np.int64(np.random.normal(mean, std))
-        N_remaining = N - N_left
+        N_remaining = N_remaining - N_left
         return_array[li:ri+1] = np.random.multinomial(N_left,
                                                       Pis[li:ri+1]/p_cut)
         li = ri+1
@@ -138,12 +143,10 @@ def multinomial_int64(N, Pis, checks=True):
         try:
             ri = np.where(N_remaining*cumulative <= 10**9)[0][-1]
             p_cut = cumulative[ri]
-            if ri > li:
-                chunk_small = True
-            else:
-                chunk_small = False
+            if ri <= li:
+                break
         except IndexError:
-            chunk_small = False
+            break
 
     p_remaining = cumulative[-1]
     for i in range(li, Pis.size-1):
