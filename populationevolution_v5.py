@@ -270,11 +270,11 @@ class Population(object):
 
     def max_fitness(self):
         """Return the highest fitness in the population."""
-        return self.fitness_list[0]
+        return self.fitness_list[0][0]
 
     def min_fitness(self):
         """Return the lowest fitness in the population."""
-        return self.fitness_list[-1]
+        return self.fitness_list[-1][0]
 
     def max_mutation_rate(self):
         """Return the highest mutation rate in the population."""
@@ -546,16 +546,16 @@ class PopulationReader(object):
         self.mode_fitness = summaryReader(self.group, 'mode_fitness',
                                           self.time_array)
         self.mean_mutation_rate = summaryReader(self.group,
-                                                'mean_mutation_rate',
+                                                'mean_mutation',
                                                 self.time_array)
         self.max_mutation_rate = summaryReader(self.group,
-                                               'max_mutation_rate',
+                                               'max_mutation',
                                                self.time_array)
         self.min_mutation_rate = summaryReader(self.group,
-                                               'min_mutation_rate',
+                                               'min_mutation',
                                                self.time_array)
         self.mode_mutation_rate = summaryReader(self.group,
-                                                'mode_mutation_rate',
+                                                'mode_mutation',
                                                 self.time_array)
 
     def __len__(self):
@@ -622,7 +622,7 @@ class summaryReader(object):
             return history[offset]
         elif isinstance(key, slice):
             if key.stop is None:
-                stop = self.time_array[-1, 1]
+                stop = self.time_array[-1, 1] + 1
             else:
                 stop = key.stop
             return [self[i] for i in range(*key.indices(stop))]
