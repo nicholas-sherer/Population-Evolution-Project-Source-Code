@@ -37,12 +37,11 @@ def stderr_of_var(var, mu4, sample_size):
     return np.sqrt((mu4-(sample_size-3)/(sample_size-1)*var**2)/sample_size)
 
 
-def multinomial_draw_repeated(N, Pis, sample_size):
+def multinomial_draw_repeated(N, Pis, sample_size,
+                              multi=am.array_multinomial):
     N = np.array(N)
     am.check(N, Pis)
-    draws = [am.array_multinomial(N, Pis, checks=False)
-             for i in range(sample_size)]
-    return draws
+    return [multi(N, Pis, checks=False) for i in range(sample_size)]
 
 
 def multinomial_draw_sample_mean(draws):
