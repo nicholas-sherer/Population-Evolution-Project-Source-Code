@@ -9,6 +9,15 @@ import numpy as np
 import arraymultinomial as am
 
 
+def mean_exp_fitness(pop_dist, fitnesses):
+    return np.sum(pop_dist*np.exp(fitnesses))/np.sum(pop_dist)
+
+
+def var_exp_fitness(pop_dist, fitnesses):
+    mean_exp2_fitness = np.sum(pop_dist*np.exp(2*fitnesses))/np.sum(pop_dist)
+    return mean_exp2_fitness - mean_exp_fitness(pop_dist, fitnesses)**2
+
+
 def wright_fisher_probabilities(pop_dist, fitnesses):
     x = pop_dist*np.exp(fitnesses)
     return x/np.sum(x)
