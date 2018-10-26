@@ -52,11 +52,11 @@ def multinomial_draw_sample_var(draws):
     return np.var(np.array(draws), axis=0)
 
 
-def multinomial_mean_and_var_errors(N, Pis, sample_size):
+def multinomial_mean_and_var_errors(N, Pis, sample_size, multi):
     means = multinomial_mean(N, Pis)
     varis = multinomial_var(N, Pis)
     mu4s = multinomial_fourth_moment_about_mean(N, Pis)
-    draws = multinomial_draw_repeated(N, Pis, sample_size)
+    draws = multinomial_draw_repeated(N, Pis, sample_size, multi)
     sample_means = multinomial_draw_sample_mean(draws)
     sample_vars = multinomial_draw_sample_var(draws)
     est_mean_errors = stderr_of_mean(varis, sample_size)
@@ -101,18 +101,43 @@ def random_N_and_Pis_scalarint64(Pis_0max):
     Pis[probabilities_length-1] = 1 - np.sum(Pis)
     return N, Pis
 
-@pytest.mark.parametrize("N,Pis,sample_size",
-                         [random_N_and_Pis(10) + (1000,) for i in range(100)])
-def test_sample_means_and_var_distribution(N, Pis, sample_size):
-    x, y = multinomial_mean_and_var_errors(N, Pis, sample_size)
-    x_pvalue = spstats.shapiro(x)[1]
-    y_pvalue = spstats.shapiro(y)[1]
-    assert min(x_pvalue, y_pvalue) >= .05
+
+@pytest.mark.parametrize("N,Pis,sample_size,multi,n_test",
+                         [random_N_and_Pis_arrayint32(10) +
+                          (1000, am.array_multinomial, 100),
+                          random_N_and_Pis_arrayint64(10) +
+                          (1000, am.array_multinomial_int64, 100),
+                          random_N_and_Pis_scalarint64(1000) +
+                          (1000, am.multinomial_int64, 100)])
+def test_sample_means_and_var_distribution(N, Pis, sample_size, multi, n_test):
+    x_pvalues = []
+    y_pvalues = []
+    passed = []
+    for i in range(n_test):
+        x, y = multinomial_mean_and_var_errors(N, Pis, sample_size, multi)
+        x_pvalue = spstats.shapiro(x)[1]
+        y_pvalue = spstats.shapiro(y)[1]
+        x_pvalues.append(x_pvalue)
+        y_pvalues.append(y_pvalue)
+        passed.append(min(x_pvalue, y_pvalue) >= .05)
+    assert np.sum(np.array(passed)) >= .6 * n_test
 
 
-@pytest.mark.parametrize("N,Pis", [random_N_and_Pis(10) for i in range(100)])
-def test_draws_sum_to_N(N, Pis):
-    draw = am.array_multinomial(N, Pis)
+n_test2 = 30
+
+
+@pytest.mark.parametrize("N,Pis,multi",
+                         [random_N_and_Pis_arrayint32(10) +
+                          (am.array_multinomial,)
+                          for i in range(n_test2)] +
+                         [random_N_and_Pis_arrayint64(10) +
+                          (am.array_multinomial_int64,)
+                          for i in range(n_test2)] +
+                         [random_N_and_Pis_scalarint64(1000) +
+                          (am.multinomial_int64,)
+                          for i in range(n_test2)])
+def test_draws_sum_to_N(N, Pis, multi):
+    draw = multi(N, Pis)
     assert np.all(np.sum(draw, axis=0) == N)
 
 
