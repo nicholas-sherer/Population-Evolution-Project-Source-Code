@@ -74,8 +74,10 @@ def random_N_and_Pis_arrayint32(Pis_0max):
     Pis_shape = (probabilities_length,) + shape
     Pis = np.zeros(Pis_shape)
     for i in range(probabilities_length-1):
-        Pis[i, ...] = np.random.uniform(0, 1-np.sum(Pis, axis=0))
-    Pis[probabilities_length-1, ...] = 1 - np.sum(Pis, axis=0)
+        Pis[i, ...] = np.clip(np.random.uniform(0, 1-np.sum(Pis, axis=0)),
+                              0, None)
+    Pis[probabilities_length-1, ...] = np.clip(1 - np.sum(Pis, axis=0),
+                                               0, None)
     return N, Pis
 
 
@@ -87,8 +89,10 @@ def random_N_and_Pis_arrayint64(Pis_0max):
     Pis_shape = (probabilities_length,) + shape
     Pis = np.zeros(Pis_shape)
     for i in range(probabilities_length-1):
-        Pis[i, ...] = np.random.uniform(0, 1-np.sum(Pis, axis=0))
-    Pis[probabilities_length-1, ...] = 1 - np.sum(Pis, axis=0)
+        Pis[i, ...] = np.clip(np.random.uniform(0, 1-np.sum(Pis, axis=0)),
+                              0, None)
+    Pis[probabilities_length-1, ...] = np.clip(1 - np.sum(Pis, axis=0),
+                                               0, None)
     return N, Pis
 
 
@@ -97,8 +101,9 @@ def random_N_and_Pis_scalarint64(Pis_0max):
     probabilities_length = np.random.randint(2, Pis_0max)
     Pis = np.zeros(probabilities_length)
     for i in range(probabilities_length-1):
-        Pis[i] = np.random.uniform(0, 1-np.sum(Pis, axis=0))
-    Pis[probabilities_length-1] = 1 - np.sum(Pis)
+        Pis[i] = np.clip(np.random.uniform(0, 1-np.sum(Pis, axis=0)),
+                         0, None)
+    Pis[probabilities_length-1] = max(0, 1 - np.sum(Pis))
     return N, Pis
 
 
