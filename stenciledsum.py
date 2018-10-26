@@ -141,3 +141,13 @@ class fixedStencilSum(object):
                                               checks=False)
             chunk_to_increase[:] += big_array[multislice]
         return return_array
+
+    def __eq__(self, other):
+        if isinstance(other, fixedStencilSum):
+            is_equal = True
+            for attribute in self.__dict__:
+                is_equal = (np.all(np.equal(getattr(self, attribute),
+                            getattr(other, attribute)))) and is_equal
+            return is_equal
+        else:
+            return NotImplemented
