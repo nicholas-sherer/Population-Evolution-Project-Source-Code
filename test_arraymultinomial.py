@@ -66,7 +66,7 @@ def multinomial_mean_and_var_errors(N, Pis, sample_size):
     return mean_errors / est_mean_errors, var_errors / est_var_errors
 
 
-def random_N_and_Pis(Pis_0max):
+def random_N_and_Pis_arrayint32(Pis_0max):
     ndim = np.random.randint(1, 3)
     shape = tuple(np.random.randint(2, 10, size=ndim))
     N = np.random.randint(100, 10000, size=shape, dtype='int32')
@@ -78,6 +78,28 @@ def random_N_and_Pis(Pis_0max):
     Pis[probabilities_length-1, ...] = 1 - np.sum(Pis, axis=0)
     return N, Pis
 
+
+def random_N_and_Pis_arrayint64(Pis_0max):
+    ndim = np.random.randint(1, 3)
+    shape = tuple(np.random.randint(2, 10, size=ndim))
+    N = np.int64(10**np.random.randint(0, 9, size=shape))*10**7
+    probabilities_length = np.random.randint(2, Pis_0max)
+    Pis_shape = (probabilities_length,) + shape
+    Pis = np.zeros(Pis_shape)
+    for i in range(probabilities_length-1):
+        Pis[i, ...] = np.random.uniform(0, 1-np.sum(Pis, axis=0))
+    Pis[probabilities_length-1, ...] = 1 - np.sum(Pis, axis=0)
+    return N, Pis
+
+
+def random_N_and_Pis_scalarint64(Pis_0max):
+    N = np.int64(10**np.random.randint(0, 9))*10**7
+    probabilities_length = np.random.randint(2, Pis_0max)
+    Pis = np.zeros(probabilities_length)
+    for i in range(probabilities_length-1):
+        Pis[i] = np.random.uniform(0, 1-np.sum(Pis, axis=0))
+    Pis[probabilities_length-1] = 1 - np.sum(Pis)
+    return N, Pis
 
 @pytest.mark.parametrize("N,Pis,sample_size",
                          [random_N_and_Pis(10) + (1000,) for i in range(100)])
