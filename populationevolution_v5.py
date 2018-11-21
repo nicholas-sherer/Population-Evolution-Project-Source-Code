@@ -432,13 +432,13 @@ class PopulationStore(object):
             self.cleanup()
 
     def fullSimStorage(self, t_start, t_finish):
-        temps = self.updateFullBlob
-        perms = self.diskwriteFull
+        temps = [self.updateFullBlob]
+        perms = [self.diskwriteFull]
         self.simStorage(t_start, t_finish, temps, perms)
 
     def summarySimStorage(self, t_start, t_finish):
-        temps = self.updateSummaryBlob
-        perms = self.diskwriteSummary
+        temps = [self.updateSummaryBlob]
+        perms = [self.diskwriteSummary]
         self.simStorage(t_start, t_finish, temps, perms)
 
     def fullandsummarySimStorage(self, t_start, t_finish):
@@ -608,24 +608,24 @@ class summaryReader(object):
     def __len__(self):
         return self.length
 
-    def __getitem__(self, key):
+    def __getitem__(self, time):
         '''Return summary statistics for a slice in a list.'''
-        if isinstance(key, int):
-            ts = time_segment(key, self.time_array)
+        if isinstance(time, int):
+            ts = time_segment(time, self.time_array)
             if ts == []:
                 raise KeyError('That time does not exist in the data')
             time_range = self.time_array[ts]
-            offset = key - time_range[0]
+            offset = time - time_range[0]
             h5key = time_range_to_h5key_summary(time_range)
             subgroup = self.group[h5key]
             history = self._load_hdf5summaryarray(subgroup, self.key)
             return history[offset]
-        elif isinstance(key, slice):
-            if key.stop is None:
+        elif isinstance(time, slice):
+            if time.stop is None:
                 stop = self.time_array[-1, 1] + 1
             else:
-                stop = key.stop
-            return [self[i] for i in range(*key.indices(stop))]
+                stop = time.stop
+            return [self[i] for i in range(*time.indices(stop))]
         else:
             raise TypeError('You must use an integer or a slice to index')
 
