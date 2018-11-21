@@ -144,9 +144,9 @@ class Population(object):
                        'fraction_accurate', 'fraction_mu2mu']
         mu_params = [load_group.attrs[attr] for attr in params_list]
         K = load_group.attrs['pop_cap']
-        fitness_list = load_group['fitness_history'][:, :, -1]
-        mutation_list = load_group['mutation_history'][:, :, -1][0]
-        population_distribution = load_group['pop_history'][:, :, -1]
+        fitness_list = load_group['fitness_history'][-1, :, :]
+        mutation_list = load_group['mutation_history'][-1, :, :][0]
+        population_distribution = load_group['pop_history'][-1, :, :]
         population = cls.arrayInit(fitness_list, mutation_list,
                                    population_distribution, *mu_params, K)
         return population
