@@ -611,23 +611,63 @@ class summaryReader(object):
     def __getitem__(self, time):
         '''Return summary statistics for a slice in a list.'''
         if isinstance(time, int):
-            ts = time_segment(time, self.time_array)
-            if ts == []:
-                raise KeyError('That time does not exist in the data')
-            time_range = self.time_array[ts]
-            offset = time - time_range[0]
-            h5key = time_range_to_h5key_summary(time_range)
-            subgroup = self.group[h5key]
+            subgroup, offset = self._time_to_subgroup_and_offset(time)
             history = self._load_hdf5summaryarray(subgroup, self.key)
             return history[offset]
         elif isinstance(time, slice):
             if time.stop is None:
                 stop = self.time_array[-1, 1] + 1
             else:
-                stop = time.stop
-            return [self[i] for i in range(*time.indices(stop))]
+                if time.stop >= 0:
+                    stop = time.stop
+                else:
+                    stop = self.time_array[-1, 1] + 1 + time.stop
+            if time.start is None:
+                start = self.time_array[0, 0]
+            else:
+                if time.start >= 0:
+                    start = time.start
+                else:
+                    start = self.time_array[-1, 1] + 1 + time.start
+            subgroups, slices = self._times_to_subgroups_and_slices(start,
+                                                                    stop)
+            histories = [self._load_hdf5summaryarray(subgroup, self.key) for
+                         subgroup in subgroups]
+            full_array = np.hstack(history[slic] for history, slic in
+                                   zip(histories, slices))
+            if time.step is None:
+                return full_array
+            else:
+                return full_array[::time.step]
         else:
             raise TypeError('You must use an integer or a slice to index')
+
+    def _time_to_subgroup_and_offset(self, time):
+        ts = time_segment(time, self.time_array)
+        if ts == []:
+            raise KeyError('That time does not exist in the data')
+        time_range = self.time_array[ts]
+        offset = time - time_range[0]
+        h5key = time_range_to_h5key_summary(time_range)
+        subgroup = self.group[h5key]
+        return subgroup, offset
+
+    def _times_to_subgroups_and_slices(self, start, stop):
+        start_ts = time_segment(start, self.time_array)
+        stop_ts = time_segment(stop-1, self.time_array)
+        if start_ts == [] or stop_ts == []:
+            raise KeyError('That time does not exist in the data')
+        time_ranges = self.time_array[start_ts:stop_ts+1]
+        if len(time_ranges) > 1:
+            slices = [slice(start - time_ranges[0, 0], None)] + \
+                [slice(None, None)]*(len(time_ranges)-2) + \
+                [slice(stop-time_ranges[-1, 0])]
+        else:
+            slices = [slice(start - time_ranges[0, 0],
+                            stop - time_ranges[-1, 0])]
+        h5keys = [time_range_to_h5key_summary(time_range) for time_range
+                  in time_ranges]
+        return [self.group[key] for key in h5keys], slices
 
     # the cache function stashes hdf5 arrays in numpy arrays in memory to avoid
     # having to keep going to disk when we iterate over the __call__ function
