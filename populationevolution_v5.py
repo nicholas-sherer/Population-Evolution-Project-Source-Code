@@ -470,7 +470,7 @@ class PopulationStore(object):
         new_data = self.group.create_group(segment)
         self.writeAttributes(new_data, t_i, t_iplus)
         for k, v in self.blobdata['full_distribution'].items():
-            reg_data = r2r.raggedTo3DRectangle(v[1])
+            reg_data = r2r.raggedTo3DRectangle_n(v[1])
             new_data.create_dataset(k, data=reg_data, compression="gzip",
                                     compression_opts=4, shuffle=True)
 
@@ -570,11 +570,11 @@ class PopulationReader(object):
         h5key = time_range_to_h5key(time_range)
         subgroup = self.group[h5key]
         fitness_history = self._load_hdf5array(subgroup, 'fitness_history')
-        fitness_list = fitness_history[:, :, offset]
+        fitness_list = fitness_history[offset, :, :]
         mutation_history = self._load_hdf5array(subgroup, 'mutation_history')
-        mutation_list = mutation_history[:, :, offset]
+        mutation_list = mutation_history[offset, :, :]
         pop_history = self._load_hdf5array(subgroup, 'pop_history')
-        population_distribution = pop_history[:, :, offset]
+        population_distribution = pop_history[offset, :, :]
         attributes = subgroup.attrs
         delta_fitness = attributes['delta_fitness']
         mu_multiple = attributes['mu_multiple']
