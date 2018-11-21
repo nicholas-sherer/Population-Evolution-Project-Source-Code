@@ -14,7 +14,7 @@ def randomPopulationParameters(N_high, pop_shape):
     f_high = np.random.uniform(0, 1.0)
     mu_low = np.minimum(10**np.random.uniform(-4, -1), .9/1.1**pop_shape[1])
     pop_dist = np.int64(10**np.random.uniform(-4, 0, pop_shape)*N_high)
-    K = N_high/2*pop_shape[0]*pop_shape[1]
+    K = np.sum(pop_dist)
     delta_f = np.random.uniform(.001, .1)
     mu_multiple = np.random.uniform(1.1,
                                     np.minimum(10, mu_low**(-1/pop_shape[1])))
