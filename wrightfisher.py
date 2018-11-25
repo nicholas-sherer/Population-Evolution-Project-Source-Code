@@ -19,7 +19,9 @@ def var_exp_fitness(pop_dist, fitnesses):
 
 
 def wright_fisher_probabilities(pop_dist, fitnesses):
-    x = pop_dist*np.exp(fitnesses)
+    # subtracting the minimum fitness reduces overflow errors while
+    # leaving the answer unchanged
+    x = pop_dist*np.exp(fitnesses-np.min(fitnesses))
     return x/np.sum(x)
 
 
