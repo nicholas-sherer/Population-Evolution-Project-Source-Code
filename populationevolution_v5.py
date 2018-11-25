@@ -609,7 +609,7 @@ class summaryReader(object):
         return self.length
 
     def __getitem__(self, time):
-        '''Return summary statistics for a slice in a list.'''
+        '''Return summary statistics for a slice in a numpy array.'''
         if isinstance(time, int):
             subgroup, offset = self._time_to_subgroup_and_offset(time)
             history = self._load_hdf5summaryarray(subgroup, self.key)
