@@ -107,7 +107,7 @@ def multinomial_int64(N, Pis, checks=True):
         Pis = np.array(Pis)
         check(N_array, Pis)
 
-    # if N is less than the cutoff below which numpy.random.multinomial fails
+    # if N is less than the cutoff above which numpy.random.multinomial fails
     # just call np.random.multinomial
     if N <= 10**9:
         return np.random.multinomial(N, Pis)
