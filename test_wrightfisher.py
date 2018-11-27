@@ -58,7 +58,7 @@ def test_delta_mean_exp_f(pop_dist, fitnesses):
 def test_f_approximately_translationally_invariant(pop_dist, fitnesses, trans):
     wf_prob = wf.wright_fisher_probabilities(pop_dist, fitnesses)
     wf_prob_trans = wf.wright_fisher_probabilities(pop_dist, fitnesses + trans)
-    assert(np.isclose(wf_prob, wf_prob_trans))
+    assert(np.allclose(wf_prob, wf_prob_trans))
 
 
 pytest.main()
