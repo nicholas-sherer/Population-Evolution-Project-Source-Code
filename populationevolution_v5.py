@@ -86,10 +86,10 @@ class Population(object):
         self.fitness_list = np.transpose(np.atleast_2d(np.linspace(f_max,
                                          f_min, pop_shape[0])))
 
-        self.mutation_list = np.geomspace(mu_min,
+        self.mutation_list = np.maximum(np.geomspace(mu_min,
                                           mu_min*mu_multiple**(pop_shape[1]-1),
-                                          pop_shape[1])
-        if self.mutation_list[-1] > 1.0:
+                                          pop_shape[1]),1)
+        if self.mutation_list[-2] >= 1.0:
             raise ValueError('Your population distribution implies mutation'
                              ' rates exceeding one. This is not possible in'
                              ' this model.')
