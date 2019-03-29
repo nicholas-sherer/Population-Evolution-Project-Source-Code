@@ -10,7 +10,7 @@ import functools
 import numpy as np
 
 
-def testApproxIneq(delta_f, M, f_b, f_a, P_mu, K):
+def sweep_approx_ineq(delta_f, M, f_b, f_a, P_mu, K):
     """
     This returns whether or not the parameters chosen fulfill the three
     inequalities that must be satisfied for the mutation followed by sweep
@@ -18,7 +18,7 @@ def testApproxIneq(delta_f, M, f_b, f_a, P_mu, K):
     """
     M_test = M_inequality(M)
     P_mu_test = P_mu_inequality(M, P_mu)
-    fix_time_test = fixation_ineqality(M, f_b, f_a, P_mu, K)
+    fix_time_test = fixation_inequality(M, f_b, f_a, P_mu, K)
     drift_test = delta_f_inequality(delta_f, K)
     return M_test and P_mu_test and fix_time_test and drift_test
 
@@ -31,7 +31,7 @@ def P_mu_inequality(M, P_mu):
     return (1 - P_mu)*M > 1
 
 
-def fixation_ineqality(M, f_b, f_a, P_mu, K):
+def fixation_inequality(M, f_b, f_a, P_mu, K):
     return (1 - 1/M) > \
         (f_a*P_mu + f_b*(1-P_mu)*(M-1)/((1-P_mu)*M-1))*K*np.log(K)
 
@@ -56,28 +56,36 @@ def fixation_probability(K, s):
         return 0
 
 
-def effectiveFitnessDifference(f_1, f_2, mu_1, mu_2):
+def effective_fitness_difference(f_1, f_2, mu_1, mu_2):
     return np.exp(f_2-f_1)*(1-mu_2)/(1-mu_1)-1
 
 
-def powerOfMultiple(mu1, mu2, M):
+def power_of_multiple(mu1, mu2, M):
     """
     Given mu1, mu2, and M, this computes the k such that mu2 = mu1 *
     M^k
     """
-    return np.round(np.log(mu2/mu1)/np.log(M))
+    return np.log(mu2/mu1)/np.log(M)
 
 
 @functools.lru_cache(maxsize=16)
-def findN0l(P_mu, M, l):
+def findN0l(P_mu, M, mu_min, l):
+    if mu_min >= 1:
+        raise ValueError('mu_min must be less than 1')
     if l == 0:
         return 1
+    elif M**(l-1)*mu_min >= 1:
+        return 0
+    elif M**l*mu_min >=1:
+        return P_mu*M**(l-1)*mu_min/(1-mu_min) * findN0l(P_mu, M, mu_min, l-1)
     else:
-        return P_mu * M**(l-1)/(M**l - 1) * findN0l(P_mu, M, l-1)
+        return P_mu * M**(l-1)/(M**l - 1) * findN0l(P_mu, M, mu_min, l-1)
 
 
 @functools.lru_cache(maxsize=16)
 def findNk0(P_mu, mu_min, delta_f, k):
+    if mu_min >= 1:
+        raise ValueError('mu_min must be less than 1')
     if k == 0:
         return 1
     else:
@@ -87,10 +95,18 @@ def findNk0(P_mu, mu_min, delta_f, k):
 
 @functools.lru_cache(maxsize=256)
 def findNkl(P_mu, M, mu_min, delta_f, k, l):
+    if mu_min >= 1:
+        raise ValueError('mu_min must be less than 1')
     if l == 0:
         return findNk0(P_mu, mu_min, delta_f, k)
     elif k == 0:
-        return findN0l(P_mu, M, l)
+        return findN0l(P_mu, M, mu_min, l)
+    elif M**(l-1)*mu_min >= 1:
+        return 0
+    elif M**l*mu_min >=1:
+        return ((P_mu*M**(l-1)*mu_min*findNkl(P_mu, M, mu_min, delta_f, k, l-1)
+                + np.exp(delta_f)*findNkl(P_mu, M, mu_min, delta_f, k-1, l))/
+                (np.exp(k*delta_f)*(1-mu_min)))
     else:
         num_term1 = M**(l-1)*mu_min*P_mu*findNkl(P_mu, M, mu_min, delta_f, k,
                                                    l-1)
@@ -101,8 +117,8 @@ def findNkl(P_mu, M, mu_min, delta_f, k, l):
         return (num_term1 + num_term2) / denom
 
 
-def findNeq(P_mu, M, mu_min, delta_f, K):
-    Nkl = [[1, findN0l(P_mu, M, 1)],
+def findNeq(mu_min, delta_f, M, P_mu, K):
+    Nkl = [[1, findN0l(P_mu, M, mu_min, 1)],
            [findNk0(P_mu, mu_min, delta_f, 1), findNkl(P_mu, M, mu_min, delta_f, 1, 1)]]
     total = 1
     total_next = np.sum(Nkl)
@@ -117,59 +133,112 @@ def findNeq(P_mu, M, mu_min, delta_f, K):
             Nkl.append([findNkl(P_mu, M, mu_min, delta_f, k+1, x) for x in range(l+1)])
             k = k+1
         else:
-            for i, x in enumerate(Nkl):
-                x.append(findNkl(P_mu, M, mu_min, delta_f, i, l+1))
-            l = l+1
+            # only add a column if the maximum mutation rate is below 1
+            if M**l*mu_min < 1:
+                for i, x in enumerate(Nkl):
+                    x.append(findNkl(P_mu, M, mu_min, delta_f, i, l+1))
+                l = l+1
+            # otherwise add a row
+            else:
+                Nkl.append([findNkl(P_mu, M, mu_min, delta_f, k+1, x)
+                            for x in range(l+1)])
+                k = k+1
         total_next = np.sum(Nkl)
         conv = (total_next - total)/total
     return np.array(Nkl)*K/total_next
 
 
-def findTransitionRate(mu_1, mu_2, delta_f, M, f_b, f_a, P_mu, K):
+def transition_rate(mu_1, mu_2, delta_f, M, f_b, f_a, P_mu, K):
     if mu_1 <= mu_2:
-        return findMutatorSweepRate(mu_1, mu_2, delta_f, M, f_b, P_mu, K)
+        return mutator_sweeprate(mu_1, mu_2, delta_f, M, f_b, P_mu, K)
     elif mu_1 > mu_2:
-        return findAntiMutatorSweepRate(mu_1, mu_2, delta_f, M, f_a, P_mu, K)
+        return antimutator_sweeprate(mu_1, mu_2, delta_f, M, f_a, P_mu, K)
     else:
         print('uh oh, something went wrong')
 
 
-def findMutatorSweepRate(mu_1, mu_2, delta_f, M, f_b, P_mu, K):
-    s = effectiveFitnessDifference(0, delta_f, mu_1, mu_2)
+def mutator_sweeprate(mu_1, mu_2, delta_f, M, f_b, P_mu, K):
+    s = effective_fitness_difference(0, delta_f, mu_1, mu_2)
     p_fix = fixation_probability(K, s)
-    k = int(powerOfMultiple(mu_1, mu_2, M))
-    N_eff = findNeq(P_mu, M, mu_1, delta_f, K)[0,k]
+    k = int(np.round(power_of_multiple(mu_1, mu_2, M)))
+    try:
+        N_eff = findNeq(mu_1, delta_f, M, P_mu, K)[0,k]
+    except IndexError:
+        N_eff = 0
     return f_b * (1 - P_mu) * mu_2 * N_eff * p_fix
 
 
-def findAntiMutatorSweepRate(mu_1, mu_2, delta_f, M, f_a, P_mu, K):
-    s = effectiveFitnessDifference(0, 0, mu_1, mu_2)
+def antimutator_sweeprate(mu_1, mu_2, delta_f, M, f_a, P_mu, K):
+    s = effective_fitness_difference(0, 0, mu_1, mu_2)
     p_fix = fixation_probability(K, s)
-    k = powerOfMultiple(mu_1, mu_2, M)
+    k = power_of_multiple(mu_1, mu_2, M)
+    # in this approximation, antimutators aren't more than one multiple below
     if k < -1.00:
         return 0
     else:
-        N_eff = findNeq(P_mu, M, mu_1, delta_f, K)[0,0]
+        try:
+            N_eff = findNeq(mu_1, delta_f, M, P_mu, K)[0,0]
+        except IndexError:
+            N_eff = 0
         return f_a * P_mu * mu_1 * N_eff * p_fix
 
 
-def findTransitionMatrix(mu_list, delta_f, M, f_b, f_a, P_mu, K):
+def mu_sweep_max(mu0, delta_f, M):
+    mu_cutoff = (np.exp(delta_f)-1)/(M*np.exp(delta_f)-1)
+    k = int(power_of_multiple(mu0, mu_cutoff, M))
+    return k + 3
+
+
+def mu_sweep_min(mu0, delta_f, M, f_b, f_a, P_mu, K):
+    mu_curr = mu0
+    mu_above = M*mu_curr
+    rate_up = mutator_sweeprate(mu_curr, mu_above, delta_f, M, f_b, P_mu, K)
+    rate_down = antimutator_sweeprate(mu_above, mu_curr, delta_f, M, f_a,
+                                      P_mu, K)
+    i=0
+    if rate_down/rate_up > 1/100:
+        while rate_down/rate_up > 1/100:
+            mu_above = mu_curr
+            mu_curr = mu_curr / M
+            i = i - 1
+            rate_up = mutator_sweeprate(mu_curr, mu_above, delta_f, M, f_b,
+                                        P_mu, K)
+            rate_down = antimutator_sweeprate(mu_above, mu_curr, delta_f, M,
+                                              f_a, P_mu, K)
+        return i
+    else:
+        while rate_down/rate_up < 1/100:
+            mu_curr = mu_above
+            mu_above = M*mu_curr
+            i = i + 1
+            rate_up = mutator_sweeprate(mu_curr, mu_above, delta_f, M, f_b,
+                                        P_mu, K)
+            rate_down = antimutator_sweeprate(mu_above, mu_curr, delta_f, M,
+                                              f_a, P_mu, K)
+        return i - 1
+
+
+def transition_matrix(mu0, delta_f, M, f_b, f_a, P_mu, K):
+    l_max = mu_sweep_max(mu0, delta_f, M)
+    l_min = mu_sweep_min(mu0, delta_f, M, f_b, f_a, P_mu, K)
+    mu_list = mu0*M**np.arange(l_min,l_max)
     matrix_size = np.size(mu_list)
-    temp = np.zeros((matrix_size, matrix_size))
+    Tm = np.zeros((matrix_size, matrix_size))
     for i in range(matrix_size):
         for j in range(matrix_size):
             if i != j:
-                Tij = findTransitionRate(mu_list[j], mu_list[i], delta_f, M,
-                                         f_b, f_a, P_mu, K)
-                temp[i, j] += Tij
-                temp[j, j] -= Tij
-    return temp
+                Tij = transition_rate(mu_list[j], mu_list[i], delta_f, M,
+                                      f_b, f_a, P_mu, K)
+                Tm[i, j] += Tij
+                Tm[j, j] -= Tij
+    return mu_list, Tm
 
 
-def findSteadyState(transition_matrix):
+def steady_state(transition_matrix):
     t_norm = transition_matrix / np.max(transition_matrix)
     U, s, V = np.linalg.svd(t_norm)
-    ss_eig = s[-1]  # numpy's svd sorts by descending order of singular values
-    null_vector = V[-1, :]
+    null_vector = V[-1, :] # np svd sorts singular values in descending order
+    null_vector = null_vector / np.sum(null_vector)
+    null_vector = np.maximum(null_vector, 0)
     proportions = null_vector / np.sum(null_vector)
-    return ss_eig, proportions
+    return proportions
