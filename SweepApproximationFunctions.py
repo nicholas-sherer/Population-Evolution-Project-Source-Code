@@ -173,7 +173,7 @@ def antimutator_sweeprate(mu_1, mu_2, delta_f, M, f_a, P_mu, K):
     p_fix = fixation_probability(K, s)
     k = power_of_multiple(mu_1, mu_2, M)
     # in this approximation, antimutators aren't more than one multiple below
-    if k < -1.00:
+    if np.round(k) < -1.00:
         return 0
     else:
         try:
@@ -185,7 +185,7 @@ def antimutator_sweeprate(mu_1, mu_2, delta_f, M, f_a, P_mu, K):
 
 def mu_sweep_max(mu0, delta_f, M):
     mu_cutoff = (np.exp(delta_f)-1)/(M*np.exp(delta_f)-1)
-    k = int(power_of_multiple(mu0, mu_cutoff, M))
+    k = np.floor(power_of_multiple(mu0, mu_cutoff, M))
     return k + 3
 
 
@@ -196,8 +196,8 @@ def mu_sweep_min(mu0, delta_f, M, f_b, f_a, P_mu, K):
     rate_down = antimutator_sweeprate(mu_above, mu_curr, delta_f, M, f_a,
                                       P_mu, K)
     i=0
-    if rate_down/rate_up > 1/100:
-        while rate_down/rate_up > 1/100:
+    if rate_down > 1/100 * rate_up:
+        while rate_down > 1/100 * rate_up:
             mu_above = mu_curr
             mu_curr = mu_curr / M
             i = i - 1
@@ -207,7 +207,7 @@ def mu_sweep_min(mu0, delta_f, M, f_b, f_a, P_mu, K):
                                               f_a, P_mu, K)
         return i
     else:
-        while rate_down/rate_up < 1/100:
+        while rate_down < 1/100 * rate_up:
             mu_curr = mu_above
             mu_above = M*mu_curr
             i = i + 1
@@ -221,7 +221,13 @@ def mu_sweep_min(mu0, delta_f, M, f_b, f_a, P_mu, K):
 def transition_matrix(mu0, delta_f, M, f_b, f_a, P_mu, K):
     l_max = mu_sweep_max(mu0, delta_f, M)
     l_min = mu_sweep_min(mu0, delta_f, M, f_b, f_a, P_mu, K)
-    mu_list = mu0*M**np.arange(l_min,l_max)
+    mu_list = mu0*float(M)**np.arange(l_min,l_max)
+    if mu_list[-1]>=1:
+        raise RuntimeError('These parameter values are outside the range where'
+                           ' the invasion-sweep approximation is valid. It is'
+                           ' possible for a mutation rate of 1 to sweep the'
+                           ' population which will break the assumption of'
+                           ' a steady state between sweeps.')
     matrix_size = np.size(mu_list)
     Tm = np.zeros((matrix_size, matrix_size))
     for i in range(matrix_size):
