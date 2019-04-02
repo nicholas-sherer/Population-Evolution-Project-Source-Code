@@ -24,25 +24,36 @@ def compareNeq_Ntrue(mu_min, delta_f, M, P_mu, K, t):
         pop.update()
         delta_Ns.append(diffNeq_Npop(mu_list, Neq, pop.mutation_list,
                                      pop.population_distribution))
-    return mu_list, Neq, r2r.ragged_to_regular(delta_Ns)
+    delta_Ns = r2r.ragged_to_regular(delta_Ns)
+    new_shape = (delta_Ns.shape[1], delta_Ns.shape[2])
+    Neq_rs = np.zeros(new_shape, dtype=Neq.dtype)
+    Neq_rs[:Neq.shape[0],:Neq.shape[1]] = Neq
+    mu_list_rs = np.minimum(np.geomspace(mu_min,
+                                         mu_min*M**(new_shape[1]-1),
+                                         new_shape[1]),1)
+    return mu_list_rs, Neq_rs, delta_Ns
 
 
 def diffNeq_Npop(mu_list, Neq, pop_mut, pop_dist):
     fs, mus = np.maximum(pop_dist.shape, Neq.shape)
+    M = mu_list[1]/mu_list[0]
     Neq_padded = np.zeros((fs,mus),dtype=Neq.dtype)
     Neq_padded[:Neq.shape[0],:Neq.shape[1]]=Neq
-    mu_list_padded = np.minimum(mu_list[0]*
-                                (mu_list[1]/mu_list[0])**np.arange(mus),1)
+    mu_list_padded = np.minimum(mu_list[0]*M**np.arange(mus),1)
     pop_dist_padded = np.zeros((fs,mus),dtype=pop_dist.dtype)
     pop_dist_padded[:pop_dist.shape[0],:pop_dist.shape[1]]=pop_dist
-    pop_mut_padded = np.minimum(pop_mut[0]*
-                                (pop_mut[1]/pop_mut[0])**np.arange(mus),1)
+    pop_mut_padded = np.minimum(pop_mut[0]*M**np.arange(mus),1)
     if not np.allclose(pop_mut_padded, mu_list_padded):
         print('eq_mu_list:', mu_list_padded)
         print('pop_mu_list:', pop_mut_padded)
         raise RuntimeError('the mutation rates of Neq and the population being'
                            'tested do not match.')
     return Neq_padded-pop_dist_padded
+
+
+def mean_probability_error(delta_Ns, K):
+    ts = np.arange(1,delta_Ns.shape[0]+2)
+    return np.sum(np.abs(np.cumsum(delta_Ns,axis=0)), axis=(1,2))/(2*ts*K)
 
 
 def invader_Neq(mu_min, delta_f, M, P_mu, K, inv_f_step, inv_mu_step):
