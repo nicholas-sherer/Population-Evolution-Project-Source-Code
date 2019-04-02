@@ -20,7 +20,10 @@ def sweep_approx_ineq(delta_f, M, f_b, f_a, P_mu, K):
     P_mu_test = P_mu_inequality(M, P_mu)
     fix_time_test = fixation_inequality(M, f_b, f_a, P_mu, K)
     drift_test = delta_f_inequality(delta_f, K)
-    return M_test and P_mu_test and fix_time_test and drift_test
+    drift_barrier_test = outside_drift_barrier_inequality(delta_f, M, f_b,
+                                                          f_a, P_mu, K)
+    return (M_test and P_mu_test and fix_time_test and drift_test and
+            drift_barrier_test)
 
 
 def M_inequality(M):
@@ -38,6 +41,20 @@ def fixation_inequality(M, f_b, f_a, P_mu, K):
 
 def delta_f_inequality(delta_f, K):
     return delta_f > 2/K
+
+
+def outside_drift_barrier_inequality(delta_f, M, f_b, f_a, P_mu, K):
+    mu_db = mu_drift_barrier(M, f_a, K)
+    mu_sw = mu_sweep(delta_f, M, f_b, f_a, P_mu)
+    return (mu_sw > M**2*mu_db) and (mu_sw > 10*mu_db)
+
+
+def mu_drift_barrier(M, f_a, K):
+    return np.log((1-f_a)/f_a)/(2*K*np.log(M))
+
+
+def mu_sweep(delta_f, M, f_b, f_a, P_mu):
+    return (1 - P_mu)*f_b*delta_f/((M-1)**2*f_a + (1-P_mu)*(M-1)*f_b)
 
 
 def fixation_probability(K, s):
