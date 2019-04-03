@@ -31,7 +31,9 @@ def compareNeq_Ntrue(mu_min, delta_f, M, P_mu, K, t):
     mu_list_rs = np.minimum(np.geomspace(mu_min,
                                          mu_min*M**(new_shape[1]-1),
                                          new_shape[1]),1)
-    return mu_list_rs, Neq_rs, delta_Ns
+    f_list = np.linspace(0, -delta_f*new_shape[0], new_shape[0],
+                         endpoint=False)
+    return mu_list_rs, f_list, Neq_rs, delta_Ns
 
 
 def diffNeq_Npop(mu_list, Neq, pop_mut, pop_dist):
@@ -52,8 +54,25 @@ def diffNeq_Npop(mu_list, Neq, pop_mut, pop_dist):
 
 
 def mean_probability_error(delta_Ns, K):
-    ts = np.arange(1,delta_Ns.shape[0]+2)
-    return np.sum(np.abs(np.cumsum(delta_Ns,axis=0)), axis=(1,2))/(2*ts*K)
+    '''
+    Calculate the sum of the absolute value of delta_Ns over time then divide
+    by 2.'''
+    # The first axis of the array delta_Ns is the time axis so taking
+    # the cumulative sum and dividing by the array ts give us delta_N
+    # averaged over time for increasing values of time. The second two axes
+    # are the fitness and mutation rate axes so taking the absolute value,
+    # summing over those and dividing by 2*K gives us a normalized measure
+    # of the deviation of N from the approximate equilibrium. We divide by 2
+    # because that way if there is no overlap in the distributions the measure
+    # will equal 1.
+    ts = np.arange(1,delta_Ns.shape[0]+1).reshape((-1,1,1))
+    return np.sum(np.abs(np.cumsum(delta_Ns,axis=0)/ts), axis=(1,2))/(2*K)
+
+
+def delta_over_std(Neq, delta_N):
+    K = np.sum(Neq)
+    std = np.sqrt(Neq*(1-Neq/K))
+    return delta_N/std
 
 
 def invader_Neq(mu_min, delta_f, M, P_mu, K, inv_f_step, inv_mu_step):
