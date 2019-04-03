@@ -50,7 +50,7 @@ def diffNeq_Npop(mu_list, Neq, pop_mut, pop_dist):
         print('pop_mu_list:', pop_mut_padded)
         raise RuntimeError('the mutation rates of Neq and the population being'
                            'tested do not match.')
-    return Neq_padded-pop_dist_padded
+    return pop_dist_padded - Neq_padded
 
 
 def mean_probability_error(delta_Ns, K):
