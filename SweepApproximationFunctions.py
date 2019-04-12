@@ -265,3 +265,25 @@ def steady_state(transition_matrix):
     null_vector = np.maximum(null_vector, 0)
     proportions = null_vector / np.sum(null_vector)
     return proportions
+
+
+def value_array_to_waiting_times(x):
+    '''
+    Change an array of the value of a variable or set of variables at every
+    time to a pair of lists. The first list is the value the variables take in
+    the order they occur, the second is the time spent at each value before the
+    variables changes to the next value.
+    '''
+    mode = [x[0]]
+    tau = []
+    counter = 1
+    for v in x:
+        if np.all(v == mode[-1]):
+            counter = counter + 1
+        else:
+            tau.append(counter)
+            counter=1
+            mode.append(v)
+    if np.sum(tau) != len(x):
+        tau.append(len(x)-np.sum(tau))
+    return np.array(mode), np.array(tau)
