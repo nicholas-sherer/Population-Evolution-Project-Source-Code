@@ -89,10 +89,17 @@ class Population(object):
         self.mutation_list = np.minimum(np.geomspace(mu_min,
                                           mu_min*mu_multiple**(pop_shape[1]-1),
                                           pop_shape[1]),1)
-        if self.mutation_list[-2] >= 1.0:
-            raise ValueError('Your population distribution implies mutation'
-                             ' rates exceeding one. This is not possible in'
-                             ' this model.')
+        
+        if self.mutation_list.size == 1:
+            if self.mutation_list[0] > 1.0:
+                raise ValueError('Your population distribution implies mutation'
+                                 ' rates exceeding one. This is not possible in'
+                                 ' this model.')
+        else:
+            if self.mutation_list[-2] >= 1.0:
+                raise ValueError('Your population distribution implies mutation'
+                                 ' rates exceeding one. This is not possible in'
+                                 ' this model.')
 
         self.stencil = np.array([[0, -1],
                                  [0, 1],
