@@ -9,7 +9,7 @@ import numpy as np
 
 import h5py
 
-import populationevolution_v4 as popev
+import populationevolution_v5 as popev
 
 from datetime import datetime
 
@@ -46,26 +46,26 @@ def dummytoReal(dummy):
 
 def multiprocSimFunc(dummy):
     popstore = dummytoReal(dummy)
-    popstore.fullandsummarySimStorage(0, dummy.time)
+    popstore.summarySimStorage(0, dummy.time)
     popstore.file.close()
     return 1
 
 init_fit_list = np.array([0])
-init_mu_list = np.array([.01])
-K = 10**5
+init_mu_list = np.array([.064])
+K = 58000
 init_pop_dist = np.array([K])
-mu_params = [.04, 3, 10**-4, 10**-4, .1]
+mu_params = [.2, 4, 10**-6, 10**-6, .1]
 dummy_list = []
 
 for i in range(4):
-    filename = 'testing_code' + str(i) + repr(datetime.utcnow()) + '.hdf5'
+    filename = 'sweep_sim' + str(i) + repr(datetime.utcnow()) + '.hdf5'
     testpop = popev.Population(init_fit_list, init_mu_list,
                                init_pop_dist, *mu_params, K)
-    dummy_list.append(multiPopDummy(testpop, filename, 30000))
+    dummy_list.append(multiPopDummy(testpop, filename, 10**7))
 
 if __name__ == '__main__':
     print(str(datetime.utcnow()))
-    ped = multiprocessing.Pool(6)
+    ped = multiprocessing.Pool(4)
     result = ped.map(multiprocSimFunc, dummy_list)
     ped.close()
     ped.join()
