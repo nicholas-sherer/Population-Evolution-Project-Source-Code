@@ -5,7 +5,7 @@ Created on Mon Mar 14 14:07:19 2016
 @author: Nicholas Sherer
 """
 
-
+from collections import defaultdict
 import functools
 import numpy as np
 
@@ -287,3 +287,44 @@ def value_array_to_waiting_times(x):
     if np.sum(tau) != len(x):
         tau.append(len(x)-np.sum(tau))
     return np.array(mode), np.array(tau)
+
+
+def waiting_times_to_waiting_dict(f_mu_pairs, waiting_times):
+    '''
+    Change a pair of arrays where the first array is fitness, mutation rate
+    pairs and the second is the waiting times before changing to the next
+    fitness and mutation rate into a dictionary of the empirical distribution
+    of waiting times for transitions from each mutation rate to either a higher
+    fitness and the same mutation rate, a lower mutation rate, or a higher
+    fitness and mutation rate, plus a grab bag for any transitions that were
+    double sweeps (for example crossed two fitness steps at once)
+    '''
+    if len(f_mu_pairs) != len(waiting_times):
+        raise ValueError('The array of fitness and mutation rate pairs must be'
+                         'of the same length as the array of waiting times.')
+    fs = np.unique(f_mu_pairs[:,0])
+    delta_f = np.median(np.diff(np.unique(fs)))
+    mus = np.unique(f_mu_pairs[:,1])
+    M = mus[1]/mus[0]
+    wait_dict = {}
+    for mu in mus:
+        inner_wait_dict = {'f_up': [], 'mu_down': [], 'mu_up': [],
+                           'mu_2up': [], 'grab_bag': []}
+        wait_dict[mu] = inner_wait_dict
+    for i in range(len(f_mu_pairs)-1):
+        f = f_mu_pairs[i,0]
+        mu = f_mu_pairs[i,1]
+        f_next = f_mu_pairs[i+1,0]
+        mu_next = f_mu_pairs[i+1,1]
+        if np.isclose(mu, mu_next) and np.isclose(f + delta_f, f_next):
+            wait_dict[mu]['f_up'].append(waiting_times[i])
+        elif np.isclose(mu/M, mu_next) and np.isclose(f, f_next):
+            wait_dict[mu]['mu_down'].append(waiting_times[i])
+        elif np.isclose(M*mu, mu_next) and np.isclose(f + delta_f, f_next):
+            wait_dict[mu]['mu_up'].append(waiting_times[i])
+        elif np.isclose(M**2*mu, mu_next) and np.isclose(f + delta_f, f_next):
+            wait_dict[mu]['mu_2up'].append(waiting_times[i])
+        else:
+            wait_dict[mu]['grab_bag'].append((mu, mu_next, f, f_next,
+                                             waiting_times[i]))
+    return wait_dict
