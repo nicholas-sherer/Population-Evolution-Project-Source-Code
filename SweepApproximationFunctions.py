@@ -10,7 +10,7 @@ import functools
 import numpy as np
 
 
-def sweep_approx_ineq(delta_f, M, f_b, f_a, P_mu, K):
+def sweep_approx_ineq(delta_f, M, f_b, f_a, P_mu, K, verbose=True):
     """
     This returns whether or not the parameters chosen fulfill the three
     inequalities that must be satisfied for the mutation followed by sweep
@@ -22,6 +22,10 @@ def sweep_approx_ineq(delta_f, M, f_b, f_a, P_mu, K):
     drift_test = delta_f_inequality(delta_f, K)
     drift_barrier_test = outside_drift_barrier_inequality(delta_f, M, f_b,
                                                           f_a, P_mu, K)
+    if verbose:
+        print('M_test: {}, P_mu_test: {}, fix_time_test: {}, drift_test: {},'
+              'drift_barrier_test: {}'.format(M_test, P_mu_test, fix_time_test,
+                                              drift_test, drift_barrier_test))
     return (M_test and P_mu_test and fix_time_test and drift_test and
             drift_barrier_test)
 
