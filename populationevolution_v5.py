@@ -564,6 +564,13 @@ class PopulationReader(object):
         self.mode_mutation_rate = summaryReader(self.group,
                                                 'mode_mutation',
                                                 self.time_array)
+        a_group = self.group[list(self.group.keys())[0]]
+        self.delta_fitness = a_group.attrs['delta_fitness']
+        self.mu_multiple = a_group.attrs['mu_multiple']
+        self.fraction_benefical = a_group.attrs['fraction_beneficial']
+        self.fraction_accurate = a_group.attrs['fraction_accurate']
+        self.fraction_mu2mu = a_group.attrs['fraction_mu2mu']
+        self.pop_cap = a_group.attrs['pop_cap']
 
     def __len__(self):
         return self.length
