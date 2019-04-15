@@ -155,26 +155,32 @@ def estimate_fix_prob(mu_min, delta_f, M, P_mu, K, inv_f_step, inv_mu_step):
     return test_count, fixations, fixation_times, extinction_times
 
 
-def value_array_to_waiting_times(x):
+def value_array_to_waiting_times(fmumodes):
     '''
-    Change an array of the value of a variable or set of variables at every
-    time to a pair of lists. The first list is the value the variables take in
-    the order they occur, the second is the time spent at each value before the
-    variables changes to the next value.
+    Change an array of the mode of the fitness and mutation rate to a pair of
+    arrays. The array of the mode should have a shape of (t, 2).
+    
+    The first array is the value of the mode fitness and mutation rate 
+    in the order they occur, the second is the time spent at each mode before
+    the change to the next value.
+    
+    Rapid fluctuations in the mode during a transition are smoothed out by
+    looking ahead at the mode a bit after making this first pair of arrays and
+    merging together times.
     '''
-    mode = [x[0]]
+    mode = [fmumodes[0]]
     tau = []
     counter = 1
-    for v in x:
+    for v in fmumodes:
         if np.all(v == mode[-1]):
             counter = counter + 1
         else:
             tau.append(counter)
             counter=1
             mode.append(v)
-    if np.sum(tau) != len(x):
-        tau.append(len(x)-np.sum(tau))
-    return np.array(mode), np.array(tau)
+    if np.sum(tau) != len(fmumodes):
+        tau.append(len(fmumodes)-np.sum(tau))
+    return merge_flucs(np.array(mode), np.array(tau))
 
 
 def merge_flucs(fmus, taus):
@@ -198,7 +204,7 @@ def merge_flucs(fmus, taus):
             curr = nex
             taucurr = taunex
             i = i + 1
-    return fmus_fused, taus_fused
+    return np.array(fmus_fused), np.array(taus_fused)
 
 
 def waiting_times_to_waiting_dict(f_mu_pairs, waiting_times):
@@ -245,6 +251,11 @@ def waiting_times_to_waiting_dict(f_mu_pairs, waiting_times):
 
 
 def waiting_dict_to_rates(mus, wait_dict):
+    '''
+    From a dictionary of the waiting times between the different types of
+    sweeps in the mutator-antimutator case in a simulation, compute the
+    transition rates between states.
+    '''
     waitsum_dict = {}
     trans_counts = {}
     for trans in ['f_up', 'mu_down', 'mu_up', 'mu_2up']:
