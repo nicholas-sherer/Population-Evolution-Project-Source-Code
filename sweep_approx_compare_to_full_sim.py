@@ -5,6 +5,7 @@ Created on Thu Mar 28 17:27:37 2019
 @author: Nicholas Sherer
 """
 
+import copy
 import numpy as np
 import populationevolution_v5 as popev
 import raggedtoregular as r2r
@@ -176,15 +177,40 @@ def value_array_to_waiting_times(x):
     return np.array(mode), np.array(tau)
 
 
+def merge_flucs(fmus, taus):
+    l = len(taus)
+    i = 0
+    fmus_fused = []
+    taus_fused = []
+    curr = fmus[0]
+    taucurr = taus[0]
+    while i < l-2:
+        nex = fmus[i+1]
+        taunex = taus[i+1]
+        nexnex = fmus[i+2]
+        taunexnex = taus[i+2]
+        if np.all(curr==nexnex):
+            taucurr = taucurr + taunex + taunexnex
+            i = i + 2
+        else:
+            fmus_fused.append(curr)
+            taus_fused.append(taucurr)
+            curr = nex
+            taucurr = taunex
+            i = i + 1
+    return fmus_fused, taus_fused
+
+
 def waiting_times_to_waiting_dict(f_mu_pairs, waiting_times):
     '''
     Change a pair of arrays where the first array is fitness, mutation rate
     pairs and the second is the waiting times before changing to the next
-    fitness and mutation rate into a dictionary of the empirical distribution
-    of waiting times for transitions from each mutation rate to either a higher
-    fitness and the same mutation rate, a lower mutation rate, or a higher
-    fitness and mutation rate, plus a grab bag for any transitions that were
-    double sweeps (for example crossed two fitness steps at once)
+    fitness and mutation rate into a dictionary of lists of lists of the
+    empirical distribution of waiting times for transitions from each mutation
+    rate to either a higher fitness and the same mutation rate, a lower
+    mutation rate, or a higher fitness and mutation rate, plus a grab bag for
+    any transitions that were double sweeps (for example crossed two fitness
+    steps at once).
     '''
     if len(f_mu_pairs) != len(waiting_times):
         raise ValueError('The array of fitness and mutation rate pairs must be'
@@ -193,25 +219,54 @@ def waiting_times_to_waiting_dict(f_mu_pairs, waiting_times):
     delta_f = np.median(np.diff(np.unique(fs)))
     mus = np.unique(f_mu_pairs[:,1])
     M = mus[1]/mus[0]
-    wait_dict = {}
-    for mu in mus:
-        inner_wait_dict = {'f_up': [], 'mu_down': [], 'mu_up': [],
-                           'mu_2up': [], 'grab_bag': []}
-        wait_dict[mu] = inner_wait_dict
+    wts_by_mu = [[] for i in range(mus.size)]
+    wait_dict = {'f_up': copy.deepcopy(wts_by_mu), 'mu_down':
+                 copy.deepcopy(wts_by_mu), 'mu_up': copy.deepcopy(wts_by_mu),
+                 'mu_2up': copy.deepcopy(wts_by_mu),
+                 'grab_bag': copy.deepcopy(wts_by_mu)}
     for i in range(len(f_mu_pairs)-1):
         f = f_mu_pairs[i,0]
         mu = f_mu_pairs[i,1]
+        ix = np.where(mu==mus)[0][0]
         f_next = f_mu_pairs[i+1,0]
         mu_next = f_mu_pairs[i+1,1]
         if np.isclose(mu, mu_next) and np.isclose(f + delta_f, f_next):
-            wait_dict[mu]['f_up'].append(waiting_times[i])
+            wait_dict['f_up'][ix].append(waiting_times[i])
         elif np.isclose(mu/M, mu_next) and np.isclose(f, f_next):
-            wait_dict[mu]['mu_down'].append(waiting_times[i])
+            wait_dict['mu_down'][ix].append(waiting_times[i])
         elif np.isclose(M*mu, mu_next) and np.isclose(f + delta_f, f_next):
-            wait_dict[mu]['mu_up'].append(waiting_times[i])
+            wait_dict['mu_up'][ix].append(waiting_times[i])
         elif np.isclose(M**2*mu, mu_next) and np.isclose(f + delta_f, f_next):
-            wait_dict[mu]['mu_2up'].append(waiting_times[i])
+            wait_dict['mu_2up'][ix].append(waiting_times[i])
         else:
-            wait_dict[mu]['grab_bag'].append((mu, mu_next, f, f_next,
+            wait_dict['grab_bag'][ix].append((mu_next, f, f_next,
                                              waiting_times[i]))
-    return wait_dict
+    return mus, wait_dict
+
+
+def waiting_dict_to_rates(mus, wait_dict):
+    waitsum_dict = {}
+    trans_counts = {}
+    for trans in ['f_up', 'mu_down', 'mu_up', 'mu_2up']:
+        waitsum_dict[trans]=np.array([np.sum(wts) for wts in
+                                      wait_dict[trans]])
+        trans_counts[trans]=np.array([len(wts) for wts in wait_dict[trans]])
+    wait_total = (waitsum_dict['f_up'] + waitsum_dict['mu_down'] +
+                  waitsum_dict['mu_up'] + waitsum_dict['mu_2up'])
+    count_total = (trans_counts['f_up'] + trans_counts['mu_down'] +
+                   trans_counts['mu_up'] + trans_counts['mu_2up'])
+    rates_total = count_total/wait_total
+    rate_dict = {}
+    for trans in ['f_up', 'mu_down', 'mu_up', 'mu_2up']:
+        rate_dict[trans] = rates_total*trans_counts[trans]/count_total
+    empirical_Tm = np.zeros((mus.size, mus.size), dtype='float64')
+    for i, rate in list(enumerate(rate_dict['mu_down']))[1:]:
+        empirical_Tm[i-1, i] = rate
+        empirical_Tm[i, i] -= rate
+    for i, rate in list(enumerate(rate_dict['mu_up']))[:-1]:
+        empirical_Tm[i+1, i] = rate
+        empirical_Tm[i, i] -= rate
+    for i, rate in list(enumerate(rate_dict['mu_2up']))[:-2]:
+        empirical_Tm[i+2, i] = rate
+        empirical_Tm[i, i] -= rate
+    return empirical_Tm, rate_dict['f_up']
