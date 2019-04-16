@@ -95,11 +95,11 @@ class Population(object):
                 raise ValueError('Your population distribution implies mutation'
                                  ' rates exceeding one. This is not possible in'
                                  ' this model.')
-        else:
-            if self.mutation_list[-2] >= 1.0:
-                raise ValueError('Your population distribution implies mutation'
-                                 ' rates exceeding one. This is not possible in'
-                                 ' this model.')
+        #else:
+        #    if self.mutation_list[-2] >= 1.0:
+        #        raise ValueError('Your population distribution implies mutation'
+        #                         ' rates exceeding one. This is not possible in'
+        #                         ' this model.')
 
         self.stencil = np.array([[0, -1],
                                  [0, 1],
@@ -567,7 +567,7 @@ class PopulationReader(object):
         a_group = self.group[list(self.group.keys())[0]]
         self.delta_fitness = a_group.attrs['delta_fitness']
         self.mu_multiple = a_group.attrs['mu_multiple']
-        self.fraction_benefical = a_group.attrs['fraction_beneficial']
+        self.fraction_beneficial = a_group.attrs['fraction_beneficial']
         self.fraction_accurate = a_group.attrs['fraction_accurate']
         self.fraction_mu2mu = a_group.attrs['fraction_mu2mu']
         self.pop_cap = a_group.attrs['pop_cap']
