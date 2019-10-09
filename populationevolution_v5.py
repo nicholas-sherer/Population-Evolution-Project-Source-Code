@@ -74,7 +74,9 @@ class Population(object):
 
         self.pop_cap = K
         if self.pop_cap < 100:
-            raise ValueError('pop_cap must be greater than or equal to 100')
+            raise ValueError('pop_cap (K) must be greater than or equal to 100')
+        if K != np.sum(self.population_distribution):
+            raise ValueError('pop_cap (K) must be equal to the population size')
         if K <= 10**9:
             self.wright_fisher = wf.wright_fisher_fitness_update
             self.multinomial = arrm.array_multinomial
