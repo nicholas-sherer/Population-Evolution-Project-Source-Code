@@ -168,19 +168,28 @@ def value_array_to_waiting_times(fmumodes):
     looking ahead at the mode a bit after making this first pair of arrays and
     merging together times.
     '''
-    mode = [fmumodes[0]]
-    tau = []
-    counter = 1
-    for v in fmumodes:
-        if np.all(v == mode[-1]):
-            counter = counter + 1
-        else:
-            tau.append(counter)
-            counter=1
-            mode.append(v)
-    if np.sum(tau) != len(fmumodes):
-        tau.append(len(fmumodes)-np.sum(tau))
-    return merge_flucs(np.array(mode), np.array(tau))
+    mode, tau = run_length_encoding(fmumodes)
+    return merge_flucs(mode, tau)
+
+
+# shamelessly stolen from stackoverflow answer here 
+# https://stackoverflow.com/questions/1066758/
+# find-length-of-sequences-of-identical-values-in-a-numpy-array-run-length-encodi
+# by Thomas Browne. Then modified to work on arrays of shape (t,2) and 
+# rearranged to fit my old choice of argument and output orders
+def run_length_encoding(inarray):
+    ia = np.asarray(inarray)
+    n = len(ia)
+    if n == 0:
+        return (None, None)
+    elif n == 1:
+        return (ia[0], 1)
+    else:
+        x = ia[1:] != ia[:-1]
+        y = np.logical_or(x[:,0], x[:,1])
+        i = np.append(np.where(y), n-1)
+        z = np.diff(np.append(-1, i))
+        return (ia[i], z)
 
 
 def merge_flucs(fmus, taus):
