@@ -7,8 +7,8 @@ Created on Thu Mar 28 17:27:37 2019
 
 import copy
 import numpy as np
-import populationevolution_v5 as popev
-import raggedtoregular as r2r
+import populationevolution as popev
+import populationevolution.raggedtoregular as r2r
 import SweepApproximationFunctions as SAF
 
 

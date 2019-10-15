@@ -7,10 +7,12 @@ Created on Wed Sep 20 14:10:11 2017
 
 import numpy as np
 import h5py
-import populationevolution_v5 as popev
+import pytest
+
+from .. import populationevolution_v5 as popev
 
 
-def randomPopulationParameters(N_high, pop_shape):
+def random_population_parameters(N_high, pop_shape):
     f_high = np.random.uniform(0, 1.0)
     mu_low = np.minimum(10**np.random.uniform(-4, -1), .9/1.1**pop_shape[1])
     pop_dist = np.int64(10**np.random.uniform(-4, 0, pop_shape)*N_high)
@@ -25,7 +27,20 @@ def randomPopulationParameters(N_high, pop_shape):
         fraction_beneficial, fraction_accurate, fraction_mu2mu, K
 
 
-def testSaveandLoad(test_pop):
+N_max = 10**8
+pop_shape_max = 9
+
+save_and_load_params = \
+    [random_population_parameters(np.random.randint(101, N_max),
+                                  (np.random.randint(1, pop_shape_max),
+                                   np.random.randint(1, pop_shape_max)))
+     for i in range(100)]
+save_and_load_pops = [popev.Population(*params) for params
+                      in save_and_load_params]
+
+
+@pytest.mark.parametrize("test_pop", save_and_load_pops)
+def test_saveandload(test_pop):
     with h5py.File('save_and_load_test_file.hdf5', 'w') as temp_save_file:
         test_pop_store = popev.PopulationStore(test_pop, temp_save_file,
                                                percent_memory_write=.5)
@@ -33,7 +48,7 @@ def testSaveandLoad(test_pop):
     with h5py.File('save_and_load_test_file.hdf5', 'r') as temp_save_file:
         test_pop_load = \
             popev.PopulationStore.loadStartFromFile(temp_save_file,
-                                                    temp_save_file['times 0 to 2'],
+                                                    temp_save_file['times 0'
+                                                                   ' to 2'],
                                                     temp_save_file)
-        test_status = test_pop_load.population == test_pop
-        return test_status, test_pop, test_pop_load.population
+        assert(test_pop_load.population == test_pop)

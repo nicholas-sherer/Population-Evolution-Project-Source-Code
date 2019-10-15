@@ -8,7 +8,7 @@ Created on Thu Sep 27 14:27:19 2018
 import pytest
 import numpy as np
 import scipy.stats as spstats
-import arraymultinomial as am
+from .. import arraymultinomial as am
 
 
 def multinomial_mean(N, Pis):
@@ -146,4 +146,4 @@ def test_draws_sum_to_N(N, Pis, multi):
     assert np.all(np.sum(draw, axis=0) == N)
 
 
-pytest.main()
+#pytest.main()

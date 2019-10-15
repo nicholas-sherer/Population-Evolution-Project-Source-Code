@@ -7,7 +7,7 @@ Created on Wed Sep 12 12:26:48 2018
 
 import pytest
 import numpy as np
-import stenciledsum as stsum
+from .. import stenciledsum as stsum
 
 
 def random_array(ndim_max, shape_max):
@@ -117,4 +117,4 @@ def test_equality_to_manual_implementation(big_array):
     assert np.all(stsum.stenciled_sum(big_array, axis, stencil) ==
                   ex_stenciled_0axis_add(big_array))
 
-pytest.main()
+#pytest.main()

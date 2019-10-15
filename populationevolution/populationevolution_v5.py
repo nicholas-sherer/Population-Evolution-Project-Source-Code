@@ -14,10 +14,10 @@ import numpy as np
 import psutil
 import functools
 
-import raggedtorectangle as r2r
-import stenciledsum as stsum
-import arraymultinomial as arrm
-import wrightfisher as wf
+from . import raggedtorectangle as r2r
+from . import stenciledsum as stsum
+from . import arraymultinomial as arrm
+from . import wrightfisher as wf
 
 
 class Population(object):

@@ -7,7 +7,7 @@ Created on Mon Nov 26 16:24:41 2018
 
 import pytest
 import numpy as np
-import raggedtoregular as r2r
+from .. import raggedtoregular as r2r
 
 
 randint = np.random.randint
@@ -80,4 +80,4 @@ def test_regular_to_ragged_to_regular_is_identity(array_array):
         isequal = isequal and test
     assert(isequal)
 
-pytest.main()
+#pytest.main()

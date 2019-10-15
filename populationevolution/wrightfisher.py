@@ -6,7 +6,7 @@ Created on Mon Oct  8 12:05:22 2018
 """
 
 import numpy as np
-import arraymultinomial as am
+from . import arraymultinomial as am
 
 
 def mean_exp_fitness(pop_dist, fitnesses):

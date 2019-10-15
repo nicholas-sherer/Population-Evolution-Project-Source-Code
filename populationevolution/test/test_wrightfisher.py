@@ -8,7 +8,7 @@ Created on Fri Oct 26 15:14:30 2018
 import numpy as np
 import pytest
 
-import wrightfisher as wf
+from .. import wrightfisher as wf
 
 
 def expected_delta_mean_exp_f(pop_dist, fitnesses):
@@ -61,4 +61,4 @@ def test_f_approximately_translationally_invariant(pop_dist, fitnesses, trans):
     assert(np.allclose(wf_prob, wf_prob_trans))
 
 
-pytest.main()
+#pytest.main()
