@@ -15,6 +15,8 @@ from datetime import datetime
 
 import multiprocessing
 
+import os
+
 
 class multiPopDummy(object):
     """
@@ -46,26 +48,31 @@ def dummytoReal(dummy):
 
 def multiprocSimFunc(dummy):
     popstore = dummytoReal(dummy)
-    popstore.summarySimStorage(0, dummy.time)
+    popstore.fullandsummarySimStorage(0, dummy.time)
     popstore.file.close()
     return 1
 
-init_fit_list = np.array([0])
-init_mu_list = np.array([.064])
-K = 58000
-init_pop_dist = np.array([K])
-mu_params = [.2, 4, 10**-6, 10**-6, .1]
-dummy_list = []
 
-for i in range(4):
-    filename = 'sweep_sim' + str(i) + repr(datetime.utcnow()) + '.hdf5'
-    testpop = popev.Population(init_fit_list, init_mu_list,
-                               init_pop_dist, *mu_params, K)
-    dummy_list.append(multiPopDummy(testpop, filename, 10**7))
+mu_params_list = [0.1, 2, 0, 1/257, 0.3, 200]
+init_fit_list = np.array([0])
+init_mu_list = np.array([.01])
+K_list = 200*2**np.arange(0,8,dtype='int64')
+dummy_list = []
+replicates = 10
+
+for i in range(replicates):
+    for num, K in enumerate(K_list):
+        mu_params_list[-1] = K
+        init_mu_list = np.array([4/K])
+        init_pop_dist = np.array([K])
+        filename = 'drift_barrierK{0}replicate{1}{2}.hdf5'.format(K, i, repr(datetime.utcnow()))
+        testpop = popev.Population(init_fit_list, init_mu_list,
+                                   init_pop_dist, *mu_params_list)
+        dummy_list.append(multiPopDummy(testpop, filename, 10**7))
 
 if __name__ == '__main__':
     print(str(datetime.utcnow()))
-    ped = multiprocessing.Pool(4)
+    ped = multiprocessing.Pool(5)
     result = ped.map(multiprocSimFunc, dummy_list)
     ped.close()
     ped.join()
